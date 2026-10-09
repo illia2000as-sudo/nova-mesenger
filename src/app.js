@@ -182,8 +182,9 @@ async function openChat(chatId, info) {
   const isGroup = activeChatUser.isGroup === true;
   const chatTitle = activeChatUser.groupName || activeChatUser.displayName || activeChatUser.username || "Диалог";
   const chatSubtitle = isGroup ? ("Группа · " + Number(activeChatUser.memberCount || (activeChatUser.memberUids || []).length || 0) + " участников") : ("@" + (activeChatUser.username || "user"));
-  stage.innerHTML = '<div class="conversation-head">'+avatarMarkup(activeChatUser)+'<div><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div>'+(isGroup?"":'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Позвонить</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…"><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  stage.innerHTML = '<div class="conversation-head">'+avatarMarkup(activeChatUser)+'<div><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Позвонить</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…"><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
   const giftButton = $("#giftOpenBtn"); if (giftButton) giftButton.addEventListener("click", openGiftPicker);
+  const groupManageButton = $("#groupManageBtn"); if (groupManageButton) groupManageButton.addEventListener("click", () => openManageGroup(chatId, activeChatUser));
   $("#mediaInput").addEventListener("change", async e => { const file = e.target.files && e.target.files[0]; e.target.value = ""; if (file) await sendMedia(file); });
   const callButton = $("#audioCallBtn");
   if (callButton) callButton.addEventListener("click", () => {
@@ -255,6 +256,102 @@ async function openCreateGroup() {
       } catch(err) { error.textContent=errorText(err); button.disabled=false; }
     });
   } catch(e) { toast(errorText(e),true); }
+}
+
+async function openManageGroup(chatId, info) {
+  try {
+    const snap = await get(ref(db, "chats/" + chatId));
+    const group = snap.val();
+    if (!group || group.isGroup !== true) return toast("Эта группа больше недоступна.", true);
+    if (!group.members || group.members[currentUser.uid] !== true) return toast("Ты больше не участник этой группы.", true);
+    const memberUids = Object.keys(group.members).filter(uid => group.members[uid] === true);
+    const friendSnap = await get(ref(db, "friends/" + currentUser.uid));
+    const friends = Object.values(friendSnap.val() || {}).filter(f => f && f.uid && f.uid !== currentUser.uid && !memberUids.includes(f.uid));
+    let layer = $("#groupManageLayer"); if (layer) layer.remove();
+    layer = document.createElement("div"); layer.id = "groupManageLayer"; layer.className = "gift-picker-layer";
+    const isCreator = group.createdBy === currentUser.uid;
+    layer.innerHTML = '<section class="gift-picker-card group-create-card group-manage-card"><button class="gift-picker-close" id="groupManageClose" type="button">×</button><span class="eyebrow">NOVA GROUPS</span><h3>Управление группой</h3><p>Меняй название, добавляй друзей или выходи из группы.</p><form id="groupRenameForm"><label class="group-name-label" for="groupRenameInput">Название группы</label><input id="groupRenameInput" maxlength="40" required value="'+esc(group.groupName || info.groupName || "Новая группа")+'"><button class="primary-button full-button" type="submit">Сохранить название</button></form><div class="group-members-heading">Участники <span>'+memberUids.length+'</span></div><div class="group-current-members">'+memberUids.map(uid => {
+      const known = uid === currentUser.uid ? currentProfile : null;
+      const isMe = uid === currentUser.uid;
+      return '<div class="group-current-member"><span class="group-member-dot">'+(isMe?"Я":"✦")+'</span><span><strong>'+(isMe?esc(currentProfile.displayName||currentProfile.username||"Ты"):"Участник группы")+'</strong><small>'+(group.createdBy===uid?"Создатель группы":(isMe?"Ты в этой группе":"Участник"))+'</small></span></div>';
+    }).join("")+'</div><form id="groupAddMembersForm"><div class="group-members-heading">Добавить друзей <span>'+friends.length+' доступны</span></div>'+(friends.length?'<div class="group-member-list">'+friends.map(f=>'<label class="group-member-option">'+avatarMarkup(f)+'<span><strong>'+esc(f.displayName||f.username||"Пользователь")+'</strong><small>@'+esc(f.username||"user")+'</small></span><input type="checkbox" name="newGroupMember" value="'+esc(f.uid)+'"></label>').join("")+'</div>':'<p class="group-empty-note">Все твои друзья уже в группе.</p>')+(friends.length?'<button class="primary-button full-button" type="submit">Добавить выбранных</button>':'')+'<p id="groupManageError" class="group-create-error"></p></form><button id="groupLeaveBtn" class="group-leave-button" type="button">Выйти из группы</button></section>';
+    document.body.appendChild(layer);
+    $("#groupManageClose").addEventListener("click",()=>layer.remove());
+    layer.addEventListener("click",e=>{if(e.target===layer)layer.remove();});
+    $("#groupRenameForm").addEventListener("submit",async e=>{
+      e.preventDefault();
+      const name=$("#groupRenameInput").value.trim(), error=$("#groupManageError");
+      if(name.length<2){error.textContent="Название должно содержать минимум 2 символа.";return;}
+      const button=layer.querySelector('#groupRenameForm button[type="submit"]');button.disabled=true;error.textContent="Сохраняем…";
+      try {
+        const updates={}, now=Date.now(), uids=Object.keys(group.members||{}).filter(uid=>group.members[uid]===true);
+        updates["chats/"+chatId+"/groupName"]=name;
+        updates["chats/"+chatId+"/updatedAt"]=now;
+        for(const uid of uids){updates["userChats/"+uid+"/"+chatId+"/groupName"]=name;updates["userChats/"+uid+"/"+chatId+"/displayName"]=name;updates["userChats/"+uid+"/"+chatId+"/updatedAt"]=now;}
+        await update(ref(db),updates);
+        if(activeChatId===chatId){activeChatUser.groupName=name;activeChatUser.displayName=name;const head=$("#chatStage .conversation-head strong");if(head)head.textContent=name;const sub=$("#chatStage .conversation-head small");if(sub)sub.textContent="Группа · "+uids.length+" участников";}
+        toast("Название группы изменено.");layer.remove();
+      } catch(err){error.textContent=errorText(err);button.disabled=false;}
+    });
+    const addForm=$("#groupAddMembersForm");
+    if(addForm)addForm.addEventListener("submit",async e=>{
+      e.preventDefault();
+      const selected=[...layer.querySelectorAll('input[name="newGroupMember"]:checked')].map(x=>x.value);
+      const error=$("#groupManageError"), button=addForm.querySelector('button[type="submit"]');
+      if(!selected.length){error.textContent="Выбери хотя бы одного друга.";return;}
+      button.disabled=true;error.textContent="Добавляем участников…";
+      try {
+        const fresh=await get(ref(db,"chats/"+chatId)), current=fresh.val();
+        if(!current||!current.members||current.members[currentUser.uid]!==true)throw new Error("Ты больше не участник этой группы.");
+        const members={...(current.members||{})}, now=Date.now();
+        for(const uid of selected)members[uid]=true;
+        const uids=Object.keys(members).filter(uid=>members[uid]===true), updates={};
+        updates["chats/"+chatId+"/members"]=members;
+        updates["chats/"+chatId+"/memberCount"]=uids.length;
+        updates["chats/"+chatId+"/memberUids"]=uids;
+        updates["chats/"+chatId+"/updatedAt"]=now;
+        for(const uid of uids){
+          updates["userChats/"+uid+"/"+chatId+"/isGroup"]=true;
+          updates["userChats/"+uid+"/"+chatId+"/groupName"]=current.groupName||"Новая группа";
+          updates["userChats/"+uid+"/"+chatId+"/displayName"]=current.groupName||"Новая группа";
+          updates["userChats/"+uid+"/"+chatId+"/memberUids"]=uids;
+          updates["userChats/"+uid+"/"+chatId+"/memberCount"]=uids.length;
+          updates["userChats/"+uid+"/"+chatId+"/updatedAt"]=now;
+          if(!current.members||current.members[uid]!==true){
+            updates["userChats/"+uid+"/"+chatId+"/lastMessage"]="Тебя добавили в группу";
+            updates["userChats/"+uid+"/"+chatId+"/lastMessageAt"]=now;
+          }
+        }
+        await update(ref(db),updates);
+        toast("Участники добавлены в группу.");layer.remove();
+        if(activeChatId===chatId)openChat(chatId,{...activeChatUser,memberUids:uids,memberCount:uids.length});
+      }catch(err){error.textContent=errorText(err);button.disabled=false;}
+    });
+    $("#groupLeaveBtn").addEventListener("click",async()=>{
+      if(!confirm("Точно выйти из группы «"+(group.groupName||"Новая группа")+"»?"))return;
+      const button=$("#groupLeaveBtn");button.disabled=true;button.textContent="Выходим…";
+      try {
+        const fresh=await get(ref(db,"chats/"+chatId)), current=fresh.val();
+        if(!current||!current.members||current.members[currentUser.uid]!==true)throw new Error("Ты уже не участник этой группы.");
+        const remaining=Object.keys(current.members).filter(uid=>uid!==currentUser.uid&&current.members[uid]===true), updates={};
+        updates["userChats/"+currentUser.uid+"/"+chatId]=null;
+        if(!remaining.length)updates["chats/"+chatId]=null;
+        else {
+          updates["chats/"+chatId+"/members/"+currentUser.uid]=null;
+          updates["chats/"+chatId+"/memberCount"]=remaining.length;
+          updates["chats/"+chatId+"/memberUids"]=remaining;
+          updates["chats/"+chatId+"/updatedAt"]=Date.now();
+          for(const uid of remaining){
+            updates["userChats/"+uid+"/"+chatId+"/memberUids"]=remaining;
+            updates["userChats/"+uid+"/"+chatId+"/memberCount"]=remaining.length;
+          }
+        }
+        await update(ref(db),updates);
+        layer.remove();if(stopMessages){stopMessages();stopMessages=null;}activeChatId=null;activeChatUser=null;showPage("chats");
+        toast("Ты вышел из группы.");
+      }catch(err){toast(errorText(err),true);button.disabled=false;button.textContent="Выйти из группы";}
+    });
+  } catch(e) { toast(errorText(e), true); }
 }
 
 function renderFriendsPage() {
