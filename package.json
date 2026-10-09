@@ -1,0 +1,27 @@
+
+{
+  "name": "nova-messenger",
+  "version": "1.0.0",
+  "description": "NOVA Messenger for Windows",
+  "main": "main.js",
+  "author": "NOVA",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "firebase": "^12.4.0"
+  },
+  "devDependencies": {
+    "electron": "^38.2.0",
+    "electron-builder": "^26.2.0"
+  },
+  "build": {
+    "appId": "com.nova.messenger",
+    "productName": "NOVA Messenger",
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
