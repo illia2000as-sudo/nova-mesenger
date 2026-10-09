@@ -52,6 +52,20 @@
           ".write": "auth != null && root.child('chats').child($chatId).child('members').child(auth.uid).val() === true && newData.child('senderUid').val() === auth.uid"
         }
       }
+    },
+    "calls": {
+      "$callId": {
+        ".read": "auth != null && data.child('members').child(auth.uid).val() === true",
+        ".write": "auth != null && ((!data.exists() && newData.child('members').child(auth.uid).val() === true) || data.child('members').child(auth.uid).val() === true)"
+      }
+    },
+    "callInbox": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$callId": {
+          ".write": "auth != null && (auth.uid === $uid || newData.child('callerUid').val() === auth.uid || data.child('callerUid').val() === auth.uid)"
+        }
+      }
     }
   }
 }
