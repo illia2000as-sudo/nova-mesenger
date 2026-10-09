@@ -129,7 +129,7 @@ function updateSidebar() {
   $("#sideName").textContent = currentProfile.displayName || currentProfile.username || "Пользователь";
   $("#sideHandle").textContent = "@" + (currentProfile.username || "user");
   const sideAvatar = $("#sideAvatar");
-  if (sideAvatar) { const markup = avatarMarkup(currentProfile); sideAvatar.outerHTML = markup.replace('class="avatar "', 'id="sideAvatar" class="avatar "').replace('class="avatar avatar-media"', 'id="sideAvatar" class="avatar avatar-media"'); }
+  if (sideAvatar) { const markup = avatarMarkup(currentProfile); sideAvatar.outerHTML = markup.replace('<div class="avatar ', '<div id="sideAvatar" class="avatar ').replace('<div class="avatar">', '<div id="sideAvatar" class="avatar">'); }
 }
 function listenData() {
   stopListeners();
@@ -230,7 +230,7 @@ async function searchPeople() {
     if (!matches.length) { result.innerHTML = '<div class="helper-card"><span>⌕</span><p>Никого не нашли. Проверь написание.</p></div>'; return; }
     result.innerHTML = matches.map(u => {
       const isFriend = !!cachedFriends[u.uid], pending = !!cachedRequests[u.uid];
-      return '<article class="person-card"><div class="avatar">'+initial(u.displayName||u.username)+'</div><div class="person-copy"><strong>'+esc(u.displayName||u.username)+'</strong><small>@'+esc(u.username)+'</small><p>'+esc(u.bio||"Пользователь NOVA")+'</p></div><button class="small-button" data-add-uid="'+esc(u.uid)+'" '+(isFriend||pending?"disabled":"")+'>'+(isFriend?"Уже друг":pending?"Заявка отправлена":"＋ Добавить")+'</button></article>';
+      return '<article class="person-card">'+avatarMarkup(u)+'<div class="person-copy"><strong>'+esc(u.displayName||u.username)+'</strong><small>@'+esc(u.username)+'</small><p>'+esc(u.bio||"Пользователь NOVA")+'</p></div><button class="small-button" data-add-uid="'+esc(u.uid)+'" '+(isFriend||pending?"disabled":"")+'>'+(isFriend?"Уже друг":pending?"Заявка отправлена":"＋ Добавить")+'</button></article>';
     }).join("");
     result.querySelectorAll("[data-add-uid]").forEach(b => b.addEventListener("click", () => sendFriendRequest(b.dataset.addUid,b)));
   } catch(e) { result.innerHTML = '<div class="helper-card error-text"><p>'+esc(errorText(e))+'</p></div>'; }
@@ -247,13 +247,13 @@ async function loadFriends() {
     const snap = await get(ref(db,"friends/"+currentUser.uid)); cachedFriends = snap.val() || {};
     const grid = $("#friendsGrid"); if (!grid) return;
     const friends = Object.values(cachedFriends);
-    grid.innerHTML = friends.length ? friends.map(f => '<article class="person-card"><div class="avatar">'+initial(f.displayName||f.username)+'</div><div class="person-copy"><strong>'+esc(f.displayName||f.username)+'</strong><small>@'+esc(f.username)+'</small><p>Уже в твоём списке друзей</p></div><button class="small-button" data-chat-friend="'+esc(f.uid)+'">Написать ↗</button></article>').join("") : '<div class="helper-card"><span>♧</span><p>Пока нет друзей. Найди пользователя выше и отправь заявку.</p></div>';
+    grid.innerHTML = friends.length ? friends.map(f => '<article class="person-card">'+avatarMarkup(f)+'<div class="person-copy"><strong>'+esc(f.displayName||f.username)+'</strong><small>@'+esc(f.username)+'</small><p>Уже в твоём списке друзей</p></div><button class="small-button" data-chat-friend="'+esc(f.uid)+'">Написать ↗</button></article>').join("") : '<div class="helper-card"><span>♧</span><p>Пока нет друзей. Найди пользователя выше и отправь заявку.</p></div>';
     grid.querySelectorAll("[data-chat-friend]").forEach(b => b.addEventListener("click", () => startChat(b.dataset.chatFriend)));
   } catch(e) { toast(errorText(e),true); }
 }
 function renderRequestsPage() {
   const entries = Object.entries(cachedRequests);
-  $("#content").innerHTML = '<div class="page-wrap"><div class="page-intro"><div><span class="eyebrow">НОВЫЕ ЗНАКОМСТВА</span><h3>Заявки в друзья</h3><p>Принимай заявки, чтобы начать общаться.</p></div></div><div class="people-grid">'+(entries.length?entries.map(([uid,r])=>'<article class="person-card"><div class="avatar">'+initial(r.displayName||r.username)+'</div><div class="person-copy"><strong>'+esc(r.displayName||r.username)+'</strong><small>@'+esc(r.username)+'</small><p>Хочет добавить тебя в друзья</p></div><button class="small-button accept-button" data-accept="'+esc(uid)+'">Принять</button><button class="small-button muted-button" data-reject="'+esc(uid)+'">✕</button></article>').join(""):'<div class="helper-card"><span>♡</span><p>Новых заявок пока нет.</p></div>')+'</div></div>';
+  $("#content").innerHTML = '<div class="page-wrap"><div class="page-intro"><div><span class="eyebrow">НОВЫЕ ЗНАКОМСТВА</span><h3>Заявки в друзья</h3><p>Принимай заявки, чтобы начать общаться.</p></div></div><div class="people-grid">'+(entries.length?entries.map(([uid,r])=>'<article class="person-card">'+avatarMarkup(r)+'<div class="person-copy"><strong>'+esc(r.displayName||r.username)+'</strong><small>@'+esc(r.username)+'</small><p>Хочет добавить тебя в друзья</p></div><button class="small-button accept-button" data-accept="'+esc(uid)+'">Принять</button><button class="small-button muted-button" data-reject="'+esc(uid)+'">✕</button></article>').join(""):'<div class="helper-card"><span>♡</span><p>Новых заявок пока нет.</p></div>')+'</div></div>';
   $("#content").querySelectorAll("[data-accept]").forEach(b => b.addEventListener("click",()=>acceptRequest(b.dataset.accept)));
   $("#content").querySelectorAll("[data-reject]").forEach(b => b.addEventListener("click",async()=>{try{await remove(ref(db,"friendRequests/"+currentUser.uid+"/"+b.dataset.reject));toast("Заявка отклонена.");}catch(e){toast(errorText(e),true);}}));
 }
@@ -262,8 +262,8 @@ async function acceptRequest(friendUid) {
     const snap = await get(ref(db,"friendRequests/"+currentUser.uid+"/"+friendUid));
     if (!snap.exists()) return toast("Заявка уже удалена.",true);
     const incoming = snap.val(), now = Date.now(), updates = {};
-    updates["friends/"+currentUser.uid+"/"+friendUid] = {uid:friendUid,username:incoming.username,displayName:incoming.displayName,since:now};
-    updates["friends/"+friendUid+"/"+currentUser.uid] = {uid:currentUser.uid,username:currentProfile.username,displayName:currentProfile.displayName,since:now};
+    updates["friends/"+currentUser.uid+"/"+friendUid] = {uid:friendUid,username:incoming.username,displayName:incoming.displayName,avatarUrl:incoming.avatarUrl||null,avatarType:incoming.avatarType||null,since:now};
+    updates["friends/"+friendUid+"/"+currentUser.uid] = {uid:currentUser.uid,username:currentProfile.username,displayName:currentProfile.displayName,avatarUrl:currentProfile.avatarUrl||null,avatarType:currentProfile.avatarType||null,since:now};
     updates["friendRequests/"+currentUser.uid+"/"+friendUid] = null;
     await update(ref(db),updates);
     await startChat(friendUid,incoming); toast("Вы теперь друзья!");
@@ -277,8 +277,8 @@ async function startChat(friendUid, known) {
     const ids = [currentUser.uid,friendUid].sort(), id = ids[0]+"_"+ids[1], now = Date.now();
     const chatSnap = await get(ref(db,"chats/"+id));
     if (!chatSnap.exists()) await set(ref(db,"chats/"+id),{members:{[currentUser.uid]:true,[friendUid]:true},createdAt:now,updatedAt:now,lastMessage:""});
-    const mine = {withUid:friendUid,username:friend.username,displayName:friend.displayName||friend.username,lastMessage:"",updatedAt:now};
-    const theirs = {withUid:currentUser.uid,username:currentProfile.username,displayName:currentProfile.displayName||currentProfile.username,lastMessage:"",updatedAt:now};
+    const mine = {withUid:friendUid,username:friend.username,displayName:friend.displayName||friend.username,avatarUrl:friend.avatarUrl||null,avatarType:friend.avatarType||null,lastMessage:"",updatedAt:now};
+    const theirs = {withUid:currentUser.uid,username:currentProfile.username,displayName:currentProfile.displayName||currentProfile.username,avatarUrl:currentProfile.avatarUrl||null,avatarType:currentProfile.avatarType||null,lastMessage:"",updatedAt:now};
     const updates = {};
     updates["userChats/"+currentUser.uid+"/"+id] = mine;
     updates["userChats/"+friendUid+"/"+id] = theirs;
@@ -309,6 +309,20 @@ async function saveAvatar(file) {
     const oldPath = currentProfile.avatarPath;
     const fields = {avatarUrl:uploaded.url,avatarPath:uploaded.path,avatarType:isVideo?"video":"image",avatarUpdatedAt:Date.now()};
     await update(ref(db,"users/"+currentUser.uid),fields);
+    const syncUpdates = {};
+    for (const [chatId, chat] of Object.entries(cachedChats || {})) {
+      syncUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarUrl"] = uploaded.url;
+      syncUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarType"] = fields.avatarType;
+      if (chat.withUid) {
+        syncUpdates["userChats/"+chat.withUid+"/"+chatId+"/avatarUrl"] = uploaded.url;
+        syncUpdates["userChats/"+chat.withUid+"/"+chatId+"/avatarType"] = fields.avatarType;
+      }
+    }
+    for (const friendUid of Object.keys(cachedFriends || {})) {
+      syncUpdates["friends/"+friendUid+"/"+currentUser.uid+"/avatarUrl"] = uploaded.url;
+      syncUpdates["friends/"+friendUid+"/"+currentUser.uid+"/avatarType"] = fields.avatarType;
+    }
+    if (Object.keys(syncUpdates).length) await update(ref(db),syncUpdates);
     Object.assign(currentProfile,fields); updateSidebar(); renderProfilePage();
     if (oldPath && oldPath !== uploaded.path) deleteObject(storageRef(storage,oldPath)).catch(()=>{});
     toast("Аватар обновлён!");
@@ -319,6 +333,14 @@ async function removeAvatar() {
   try {
     const oldPath=currentProfile.avatarPath;
     await update(ref(db,"users/"+currentUser.uid),{avatarUrl:null,avatarPath:null,avatarType:null,avatarUpdatedAt:Date.now()});
+    const syncUpdates = {};
+    for (const [chatId, chat] of Object.entries(cachedChats || {})) {
+      syncUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarUrl"] = null;
+      syncUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarType"] = null;
+      if (chat.withUid) { syncUpdates["userChats/"+chat.withUid+"/"+chatId+"/avatarUrl"] = null; syncUpdates["userChats/"+chat.withUid+"/"+chatId+"/avatarType"] = null; }
+    }
+    for (const friendUid of Object.keys(cachedFriends || {})) { syncUpdates["friends/"+friendUid+"/"+currentUser.uid+"/avatarUrl"] = null; syncUpdates["friends/"+friendUid+"/"+currentUser.uid+"/avatarType"] = null; }
+    if (Object.keys(syncUpdates).length) await update(ref(db),syncUpdates);
     currentProfile.avatarUrl=null; currentProfile.avatarPath=null; currentProfile.avatarType=null;
     updateSidebar(); renderProfilePage();
     if(oldPath) deleteObject(storageRef(storage,oldPath)).catch(()=>{});
