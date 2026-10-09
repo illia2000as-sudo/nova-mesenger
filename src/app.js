@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, deleteUser } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 import { getDatabase, ref, set, get, onValue, push, update, remove, runTransaction } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+import { createCallSystem } from "./calls.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAxNsanO0zYvp_XsmX0GzxEPXHvbW8qYiE",
@@ -17,6 +18,7 @@ const db = getDatabase(firebaseApp);
 const $ = (s) => document.querySelector(s);
 let currentUser = null, currentProfile = null, currentPage = "chats", activeChatId = null, activeChatUser = null;
 let stopUserChats = null, stopMessages = null, stopRequests = null;
+let callSystem = null;
 let cachedChats = {}, cachedFriends = {}, cachedRequests = {};
 
 function esc(v) {
@@ -138,7 +140,11 @@ function renderChatListOnly() {
 async function openChat(chatId, info) {
   activeChatId = chatId; activeChatUser = info || {}; renderChatListOnly();
   const stage = $("#chatStage"); if (!stage) return;
-  stage.innerHTML = '<div class="conversation-head"><div class="avatar">'+initial(activeChatUser.displayName||activeChatUser.username)+'</div><div><strong>'+esc(activeChatUser.displayName||activeChatUser.username||"Диалог")+'</strong><small>@'+esc(activeChatUser.username||"user")+'</small></div><span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…" required><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  stage.innerHTML = '<div class="conversation-head"><div class="avatar">'+initial(activeChatUser.displayName||activeChatUser.username)+'</div><div><strong>'+esc(activeChatUser.displayName||activeChatUser.username||"Диалог")+'</strong><small>@'+esc(activeChatUser.username||"user")+'</small></div><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Позвонить</span></button><span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…" required><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  $("#audioCallBtn").addEventListener("click", () => {
+    if (!callSystem) return toast("Система звонков ещё запускается.", true);
+    callSystem.startAudioCall({...activeChatUser, chatId});
+  });
   if (stopMessages) stopMessages();
   stopMessages = onValue(ref(db, "messages/" + chatId), snap => {
     const messages = Object.entries(snap.val() || {}).sort((a,b)=>(a[1].createdAt||0)-(b[1].createdAt||0));
@@ -289,7 +295,10 @@ async function bootUser(user) {
     currentProfile.username = currentProfile.username || String(user.displayName || (user.email || "nova_user").split("@")[0]).toLowerCase().replace(/[^a-z0-9_]/g,"_").slice(0,24);
     currentProfile.displayName = currentProfile.displayName || user.displayName || currentProfile.username;
     currentProfile.bio = currentProfile.bio || "Привет! Я в NOVA.";
-    shell(); updateSidebar(); listenData(); showPage("chats");
+    shell(); updateSidebar(); listenData();
+    if (callSystem) callSystem.dispose();
+    callSystem = createCallSystem({ db, ref, set, get, onValue, update, remove, push, toast, esc, initial, getUser: () => currentUser });
+    showPage("chats");
   } catch(e) {
     // Не выкидываем пользователя обратно на экран входа из-за ошибки загрузки профиля.
     console.error("NOVA profile load error:", e);
@@ -299,7 +308,10 @@ async function bootUser(user) {
       displayName: user.displayName || "Пользователь NOVA",
       bio: "Привет! Я в NOVA."
     };
-    shell(); updateSidebar(); listenData(); showPage("chats");
+    shell(); updateSidebar(); listenData();
+    if (callSystem) callSystem.dispose();
+    callSystem = createCallSystem({ db, ref, set, get, onValue, update, remove, push, toast, esc, initial, getUser: () => currentUser });
+    showPage("chats");
     toast("Вход выполнен, но база профиля недоступна: " + errorText(e), true);
   }
 }
