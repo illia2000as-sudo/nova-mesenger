@@ -140,6 +140,12 @@ export function renderAIPage({firebaseApp, user, toast}) {
       renderHistory();
     } catch (error) {
       pending.remove();
+      if (history.length && history[history.length - 1].role === "user" && history[history.length - 1].text === prompt) {
+        history.pop();
+        saveHistory(user.uid, history);
+      }
+      renderHistory();
+      input.value = prompt;
       const raw = String(error && (error.message || error) || "");
       if (/API key|API_KEY|not been used|disabled|enable.*API|permission|403|404/i.test(raw)) {
         status.textContent = "ИИ пока не подключён к проекту Firebase. Выполни настройку из docs/NOVA-AI-SETUP.md.";
