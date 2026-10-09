@@ -255,15 +255,53 @@ function renderProfilePage() {
 async function bootUser(user) {
   currentUser = user;
   try {
-    const snap = await get(ref(db,"users/"+user.uid));
+    let snap = await get(ref(db,"users/"+user.uid));
     if (!snap.exists()) {
-      await new Promise(resolve => setTimeout(resolve, 900));
-      const retry = await get(ref(db,"users/"+user.uid));
-      if (!retry.exists()) { await signOut(auth); return; }
-      currentProfile = retry.val();
-    } else currentProfile = snap.val();
+      // Восстанавливаем профиль для аккаунтов, у которых Firebase Auth есть,
+      // а запись в Realtime Database отсутствует.
+      const fromAuth = String(user.displayName || (user.email || "nova_user").split("@")[0])
+        .toLowerCase().trim().replace(/[^a-z0-9_]/g, "_").replace(/^_+|_+$/g, "").slice(0,24);
+      const fallbackUsername = fromAuth.length >= 3 ? fromAuth : ("nova_" + user.uid.slice(0,8).toLowerCase());
+      currentProfile = {
+        uid: user.uid,
+        username: fallbackUsername,
+        usernameLower: fallbackUsername.toLowerCase(),
+        displayName: user.displayName || fallbackUsername,
+        bio: "Привет! Я в NOVA.",
+        createdAt: Date.now()
+      };
+      try {
+        await set(ref(db,"users/"+user.uid), currentProfile);
+        const indexRef = ref(db,"usernameIndex/"+fallbackUsername.toLowerCase());
+        await runTransaction(indexRef, value => value === null || value === user.uid ? user.uid : undefined);
+      } catch (repairError) {
+        console.warn("Не удалось восстановить профиль в базе:", repairError);
+      }
+      // Повторно читаем сохранённую запись, если восстановление прошло успешно.
+      try {
+        const repaired = await get(ref(db,"users/"+user.uid));
+        if (repaired.exists()) currentProfile = repaired.val();
+      } catch (_) {}
+    } else {
+      currentProfile = snap.val() || {};
+    }
+    currentProfile.uid = currentProfile.uid || user.uid;
+    currentProfile.username = currentProfile.username || String(user.displayName || (user.email || "nova_user").split("@")[0]).toLowerCase().replace(/[^a-z0-9_]/g,"_").slice(0,24);
+    currentProfile.displayName = currentProfile.displayName || user.displayName || currentProfile.username;
+    currentProfile.bio = currentProfile.bio || "Привет! Я в NOVA.";
     shell(); updateSidebar(); listenData(); showPage("chats");
-  } catch(e) { showAuth(); const p=document.createElement("p");p.className="error-text";p.textContent="Не удалось загрузить профиль: "+errorText(e);$(".auth-card").appendChild(p); }
+  } catch(e) {
+    // Не выкидываем пользователя обратно на экран входа из-за ошибки загрузки профиля.
+    console.error("NOVA profile load error:", e);
+    currentProfile = {
+      uid: user.uid,
+      username: String(user.displayName || (user.email || "nova_user").split("@")[0]).toLowerCase().replace(/[^a-z0-9_]/g,"_").slice(0,24) || "nova_user",
+      displayName: user.displayName || "Пользователь NOVA",
+      bio: "Привет! Я в NOVA."
+    };
+    shell(); updateSidebar(); listenData(); showPage("chats");
+    toast("Вход выполнен, но база профиля недоступна: " + errorText(e), true);
+  }
 }
 onAuthStateChanged(auth,user=>{
   if(!user){currentUser=null;currentProfile=null;cachedChats={};cachedFriends={};cachedRequests={};showAuth();}
