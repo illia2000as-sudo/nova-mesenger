@@ -19,7 +19,7 @@ const db = getDatabase(firebaseApp);
 const storage = getStorage(firebaseApp);
 const $ = (s) => document.querySelector(s);
 let currentUser = null, currentProfile = null, currentPage = "chats", activeChatId = null, activeChatUser = null;
-let stopUserChats = null, stopMessages = null, stopRequests = null, stopCoins = null;
+let stopUserChats = null, stopMessages = null, stopRequests = null, stopCoins = null, stopOwnProfile = null;
 let callSystem = null;
 let cachedChats = {}, cachedFriends = {}, cachedRequests = {};
 
@@ -75,7 +75,8 @@ function stopListeners() {
   if (stopMessages) stopMessages();
   if (stopRequests) stopRequests();
   if (stopCoins) stopCoins();
-  stopUserChats = stopMessages = stopRequests = stopCoins = null;
+  if (stopOwnProfile) stopOwnProfile();
+  stopUserChats = stopMessages = stopRequests = stopCoins = stopOwnProfile = null;
 }
 function showAuth() {
   stopListeners();
@@ -133,6 +134,14 @@ function updateSidebar() {
 }
 function listenData() {
   stopListeners();
+  stopOwnProfile = onValue(ref(db, "users/" + currentUser.uid), snap => {
+    if (!snap.exists()) return;
+    const previousPremium = !!currentProfile?.premium;
+    currentProfile = {...currentProfile, ...snap.val()};
+    updateSidebar();
+    if (!previousPremium && currentProfile.premium) toast(currentProfile.premiumGiftedBy ? "Тебе подарили NOVA Premium! ✦" : "NOVA Premium активирован! ✦");
+    if (currentPage === "premium") renderPremiumPage();
+  }, e => console.warn("NOVA profile sync:", e));
   stopUserChats = onValue(ref(db, "userChats/" + currentUser.uid), snap => {
     cachedChats = snap.val() || {};
     const badge = $("#chatBadge"); if (badge) badge.hidden = Object.keys(cachedChats).length === 0;
