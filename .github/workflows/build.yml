@@ -1,10 +1,12 @@
-
-
 name: Build NOVA Messenger
 
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
+      - 'fix/**'
+  pull_request:
     branches:
       - main
 
