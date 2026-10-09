@@ -438,3 +438,10 @@ input:not([type=checkbox]):not([type=radio]),textarea,select{transition:border-c
 .message-composer textarea::placeholder{color:#8d93ae}
 .message-composer .send-button{height:46px;flex-shrink:0}
 @media(max-width:620px){.message-composer{gap:7px;padding:11px}.message-composer textarea{padding:12px;font-size:16px}.message-composer .send-button{width:43px}}
+
+
+/* Optional desktop notifications and per-chat saved drafts */
+.conversation-notification-toggle{flex-shrink:0;width:36px;height:36px;border-radius:12px;font-size:18px;opacity:.78}
+.conversation-notification-toggle.notifications-enabled{color:#72edc6;background:#72edc617;border-color:#72edc645;opacity:1;box-shadow:0 0 0 3px #72edc60b}
+.conversation-notification-toggle:hover{opacity:1}
+@media(max-width:720px){.conversation-notification-toggle{width:32px;height:32px}}
