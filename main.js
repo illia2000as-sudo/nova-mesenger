@@ -20,10 +20,12 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // The app uses the microphone for audio-only WebRTC calls; video is never requested.
+  // Allow the app to request microphone, camera and screen capture for calls.
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
-    const allowed = permission === "media" && Array.isArray(details.mediaTypes) && details.mediaTypes.includes("audio");
-    callback(allowed);
+    const mediaTypes = Array.isArray(details?.mediaTypes) ? details.mediaTypes : [];
+    const mediaAllowed = permission === "media" && mediaTypes.length > 0 && mediaTypes.every(type => type === "audio" || type === "video");
+    const screenAllowed = permission === "display-capture";
+    callback(mediaAllowed || screenAllowed);
   });
   createWindow();
 });
