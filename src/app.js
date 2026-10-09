@@ -198,13 +198,28 @@ async function openChat(chatId, info) {
   const isGroup = activeChatUser.isGroup === true;
   const chatTitle = activeChatUser.groupName || activeChatUser.displayName || activeChatUser.username || "Диалог";
   const chatSubtitle = isGroup ? ("Группа · " + Number(activeChatUser.memberCount || (activeChatUser.memberUids || []).length || 0) + " участников") : ("@" + (activeChatUser.username || "user"));
-  stage.innerHTML = '<div class="conversation-head"><button id="mobileChatBack" class="mobile-chat-back" type="button" title="Назад к диалогам" aria-label="Назад к диалогам">←</button>'+avatarMarkup(activeChatUser)+'<div class="conversation-title"><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div><button id="messageSearchToggle" class="icon-button conversation-search-toggle" type="button" title="Найти сообщение" aria-label="Найти сообщение">⌕</button>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Звонок</span></button><button id="videoCallBtn" class="call-start-button video-call-start-button" type="button" title="Начать видеозвонок">📹 <span>Видео</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageSearchBar" class="message-search-bar" hidden><span>⌕</span><input id="messageSearchInput" type="search" placeholder="Найти в переписке…" autocomplete="off"><span id="messageSearchCount" class="message-search-count"></span><button id="messageSearchClose" type="button" title="Закрыть поиск">×</button></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><button id="jumpToLatest" class="jump-to-latest" type="button" title="К последним сообщениям" aria-label="К последним сообщениям">↓<span>Новые сообщения</span></button><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><textarea id="messageInput" maxlength="4000" rows="1" autocomplete="off" placeholder="Напиши сообщение…" aria-label="Текст сообщения"></textarea><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  stage.innerHTML = '<div class="conversation-head"><button id="mobileChatBack" class="mobile-chat-back" type="button" title="Назад к диалогам" aria-label="Назад к диалогам">←</button>'+avatarMarkup(activeChatUser)+'<div class="conversation-title"><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div><button id="desktopNotificationsToggle" class="icon-button conversation-notification-toggle" type="button" title="Включить уведомления" aria-label="Включить уведомления">♧</button><button id="messageSearchToggle" class="icon-button conversation-search-toggle" type="button" title="Найти сообщение" aria-label="Найти сообщение">⌕</button>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Звонок</span></button><button id="videoCallBtn" class="call-start-button video-call-start-button" type="button" title="Начать видеозвонок">📹 <span>Видео</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageSearchBar" class="message-search-bar" hidden><span>⌕</span><input id="messageSearchInput" type="search" placeholder="Найти в переписке…" autocomplete="off"><span id="messageSearchCount" class="message-search-count"></span><button id="messageSearchClose" type="button" title="Закрыть поиск">×</button></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><button id="jumpToLatest" class="jump-to-latest" type="button" title="К последним сообщениям" aria-label="К последним сообщениям">↓<span>Новые сообщения</span></button><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><textarea id="messageInput" maxlength="4000" rows="1" autocomplete="off" placeholder="Напиши сообщение…" aria-label="Текст сообщения"></textarea><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
   const chatLayout = $(".chat-layout");
   if (chatLayout) chatLayout.classList.add("has-open-chat");
   const mobileBack = $("#mobileChatBack");
   if (mobileBack) mobileBack.addEventListener("click", () => { activeChatId = null; activeChatUser = null; renderChatsPage(); });
   let conversationSearchQuery = "";
   let firstMessageLoad = true;
+  let previousMessageIds = new Set();
+  const draftKey = "nova-draft-" + currentUser.uid + "-" + chatId;
+  const composerDraft = $("#messageInput");
+  try { if (composerDraft) composerDraft.value = localStorage.getItem(draftKey) || ""; } catch (_) {}
+  const saveComposerDraft = () => { try { if (composerDraft) localStorage.setItem(draftKey, composerDraft.value); } catch (_) {} };
+  if (composerDraft) composerDraft.addEventListener("input", saveComposerDraft);
+  const notificationButton = $("#desktopNotificationsToggle");
+  const notificationsEnabled = () => { try { return localStorage.getItem("nova-desktop-notifications") === "on"; } catch (_) { return false; } };
+  const updateNotificationButton = () => { if (!notificationButton) return; const enabled = notificationsEnabled(); notificationButton.classList.toggle("notifications-enabled", enabled); notificationButton.title = enabled ? "Выключить уведомления" : "Включить уведомления"; notificationButton.setAttribute("aria-label", notificationButton.title); };
+  updateNotificationButton();
+  if (notificationButton) notificationButton.addEventListener("click", async () => {
+    if (notificationsEnabled()) { try { localStorage.setItem("nova-desktop-notifications", "off"); } catch (_) {} updateNotificationButton(); toast("Уведомления выключены."); return; }
+    if (!("Notification" in window)) return toast("Этот браузер не поддерживает системные уведомления.", true);
+    try { const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission(); if (permission !== "granted") return toast("Разреши уведомления в настройках браузера.", true); localStorage.setItem("nova-desktop-notifications", "on"); updateNotificationButton(); toast("Уведомления включены для открытого чата."); } catch (_) { toast("Не удалось включить уведомления.", true); }
+  });
   const searchBar = $("#messageSearchBar"), searchInput = $("#messageSearchInput"), searchCount = $("#messageSearchCount");
   const applyConversationSearch = () => {
     const box = $("#messageList"); if (!box) return;
@@ -259,6 +274,16 @@ async function openChat(chatId, info) {
   if (stopMessages) stopMessages();
   stopMessages = onValue(ref(db, "messages/" + chatId), snap => {
     const messages = Object.entries(snap.val() || {}).sort((a,b)=>(a[1].createdAt||0)-(b[1].createdAt||0));
+    if (firstMessageLoad) { previousMessageIds = new Set(messages.map(x => x[0])); }
+    else {
+      for (const [messageId, message] of messages) {
+        if (previousMessageIds.has(messageId) || message.senderUid === currentUser.uid || !notificationsEnabled() || !document.hidden || !("Notification" in window) || Notification.permission !== "granted") continue;
+        const sender = message.senderName || activeChatUser?.displayName || activeChatUser?.groupName || "Новое сообщение";
+        const body = message.type === "gift" ? "Тебе отправили подарок 🎁" : message.type === "media" ? "Отправлено фото или видео" : String(message.text || "Новое сообщение").slice(0, 120);
+        try { const notice = new Notification("NOVA · " + sender, {body, tag:"nova-" + chatId}); notice.onclick = () => { window.focus(); notice.close(); }; } catch (_) {}
+      }
+      previousMessageIds = new Set(messages.map(x => x[0]));
+    }
     const box = $("#messageList"); if (!box) return;
     const oldTop = box.scrollTop;
     const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 140;
@@ -286,7 +311,7 @@ async function openChat(chatId, info) {
         updates["userChats/"+memberUid+"/"+id+"/lastMessage"] = text.slice(0,120);
         updates["userChats/"+memberUid+"/"+id+"/lastMessageAt"] = now;
       }
-      await update(ref(db), updates); input.value = ""; input.style.height = ""; input.focus();
+      await update(ref(db), updates); input.value = ""; input.style.height = ""; try { localStorage.removeItem(draftKey); } catch (_) {} input.focus();
     } catch(e) { toast(errorText(e), true); }
     finally { if ($(".send-button")) $(".send-button").disabled = false; }
   });
