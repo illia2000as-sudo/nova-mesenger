@@ -1,17 +1,17 @@
- <escape><svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#17172e"/>
-      <stop offset="100%" stop-color="#080b18"/>
-    </linearGradient>
-    <linearGradient id="nova" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#65f4ff"/>
-      <stop offset="50%" stop-color="#8275ff"/>
-      <stop offset="100%" stop-color="#d18bff"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <circle cx="256" cy="256" r="150" fill="#655dff" opacity=".12"/>
-  <path d="M256 75 L292 213 L430 256 L292 299 L256 437 L220 299 L82 256 L220 213 Z" fill="url(#nova)"/>
-  <circle cx="256" cy="256" r="24" fill="#ffffff"/>
+<escape><svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0%" stop-color="#17172e"/>
+<stop offset="100%" stop-color="#080b18"/>
+</linearGradient>
+<linearGradient id="nova" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0%" stop-color="#65f4ff"/>
+<stop offset="50%" stop-color="#8275ff"/>
+<stop offset="100%" stop-color="#d18bff"/>
+</linearGradient>
+</defs>
+<rect width="512" height="512" rx="112" fill="url(#bg)"/>
+<circle cx="256" cy="256" r="150" fill="#655dff" opacity=".12"/>
+<path d="M256 75 L292 213 L430 256 L292 299 L256 437 L220 299 L82 256 L220 213 Z" fill="url(#nova)"/>
+<circle cx="256" cy="256" r="24" fill="#ffffff"/>
 </svg></escape>
