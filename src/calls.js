@@ -14,6 +14,7 @@ export function createCallSystem(api) {
   let finishing = false;
   let incomingCall = null;
   let audioElement = null;
+  let remoteCandidateData = {};
 
   const uid = () => getUser()?.uid;
   const callLayer = () => document.getElementById("novaCallLayer");
@@ -42,7 +43,6 @@ export function createCallSystem(api) {
     layer.querySelector("#callIncomingActions").hidden = !incoming;
     layer.querySelector("#callMuteBtn").hidden = incoming;
     layer.querySelector("#callHangupBtn").hidden = incoming;
-    layer.querySelector("#callControls").hidden = incoming;
     layer.querySelector("#callTitle").textContent = incoming ? "Входящий звонок" : "Аудиозвонок";
   }
 
@@ -71,6 +71,7 @@ export function createCallSystem(api) {
     callReady = false;
     pendingCandidates = [];
     remoteCandidateIds = new Set();
+    remoteCandidateData = {};
     finishing = false;
   }
 
@@ -112,23 +113,27 @@ export function createCallSystem(api) {
       catch (e) { console.warn("NOVA ICE candidate:", e); }
     };
     activeCallRef = ref(db, "calls/" + callId);
-    stopCandidates = onValue(ref(db, "calls/" + callId + "/candidates/" + uid()), async snap => {
-      // The other side writes candidates under their own UID.
-    });
-    stopCandidates();
     stopCandidates = onValue(ref(db, "calls/" + callId + "/candidates/" + otherUid), snap => {
-      const items = snap.val() || {};
-      Object.entries(items).forEach(async ([candidateId, candidate]) => {
-        if (remoteCandidateIds.has(candidateId) || !peer || !peer.remoteDescription) return;
-        remoteCandidateIds.add(candidateId);
-        try { await peer.addIceCandidate(new RTCIceCandidate(candidate)); }
-        catch (e) { console.warn("NOVA remote ICE candidate:", e); }
-      });
+      remoteCandidateData = snap.val() || {};
+      processRemoteCandidates();
     });
+  }
+
+  async function flushLocalCandidates(callId) {
     callReady = true;
     for (const candidate of pendingCandidates.splice(0)) {
       try { await push(ref(db, "calls/" + callId + "/candidates/" + uid()), candidate); }
       catch (e) { console.warn("NOVA queued ICE candidate:", e); }
+    }
+  }
+
+  async function processRemoteCandidates() {
+    if (!peer || !peer.remoteDescription) return;
+    for (const [candidateId, candidate] of Object.entries(remoteCandidateData)) {
+      if (remoteCandidateIds.has(candidateId)) continue;
+      remoteCandidateIds.add(candidateId);
+      try { await peer.addIceCandidate(new RTCIceCandidate(candidate)); }
+      catch (e) { console.warn("NOVA remote ICE candidate:", e); }
     }
   }
 
@@ -157,6 +162,7 @@ export function createCallSystem(api) {
         offer: { type: offer.type, sdp: offer.sdp },
         createdAt: Date.now()
       });
+      await flushLocalCandidates(callId);
       await set(ref(db, "callInbox/" + otherUid + "/" + callId), {
         callId, callerUid: me.uid,
         callerName: me.displayName || me.email?.split("@")[0] || "Пользователь NOVA",
@@ -168,7 +174,7 @@ export function createCallSystem(api) {
         const data = snap.val();
         if (!data) return;
         if (data.status === "active" && data.answer && peer && !peer.remoteDescription) {
-          peer.setRemoteDescription(new RTCSessionDescription(data.answer)).then(() => setStatus("Соединяем голос…")).catch(e => console.warn(e));
+          peer.setRemoteDescription(new RTCSessionDescription(data.answer)).then(() => { setStatus("Соединяем голос…"); processRemoteCandidates(); }).catch(e => console.warn(e));
         }
         if (["declined", "ended", "missed"].includes(data.status) && activeCallId === callId) {
           endCall(false, data.status === "declined" ? "Звонок отклонён." : "Собеседник завершил звонок.");
@@ -194,6 +200,7 @@ export function createCallSystem(api) {
       activeCallId = incoming.callId;
       await createPeer(incoming.callId, incoming.callerUid);
       await peer.setRemoteDescription(new RTCSessionDescription(data.offer));
+      await processRemoteCandidates();
       const answer = await peer.createAnswer();
       await peer.setLocalDescription(answer);
       await update(ref(db, "calls/" + incoming.callId), {
@@ -201,6 +208,7 @@ export function createCallSystem(api) {
         status: "active",
         acceptedAt: Date.now()
       });
+      await flushLocalCandidates(incoming.callId);
       await remove(ref(db, "callInbox/" + uid() + "/" + incoming.callId));
       setStatus("Соединяем голос…");
       stopCall = onValue(ref(db, "calls/" + incoming.callId), snap2 => {
