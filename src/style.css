@@ -371,3 +371,21 @@ input:not([type=checkbox]):not([type=radio]),textarea,select{transition:border-c
 @media(prefers-reduced-motion:reduce){
  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
 }
+
+
+/* Keep the active conversation toolbar attached to the visible chat while scrolling */
+.chat-stage{min-height:0;min-width:0}
+.conversation-head{
+  position:sticky;
+  top:0;
+  z-index:30;
+  flex-shrink:0;
+  box-shadow:0 8px 26px #00000018;
+  transition:box-shadow .2s ease,background .2s ease;
+}
+.message-list{
+  min-height:0;
+  overscroll-behavior:contain;
+  scroll-behavior:smooth;
+}
+.message-composer{flex-shrink:0}
