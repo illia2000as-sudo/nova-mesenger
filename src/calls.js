@@ -6,6 +6,7 @@ export function createCallSystem(api) {
   let activeCallId = null;
   let activeCallRef = null;
   let stopInbox = null;
+  let stopIncomingCall = null;
   let stopCall = null;
   let stopCandidates = null;
   let remoteCandidateIds = new Set();
@@ -190,6 +191,8 @@ export function createCallSystem(api) {
     const incoming = incomingCall;
     if (!incoming || activeCallId) return;
     incomingCall = null;
+    if (stopIncomingCall) stopIncomingCall();
+    stopIncomingCall = null;
     try {
       showLayer(incoming.callerName, "Подключаем микрофон…");
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -226,6 +229,8 @@ export function createCallSystem(api) {
   async function rejectIncoming() {
     const incoming = incomingCall;
     incomingCall = null;
+    if (stopIncomingCall) stopIncomingCall();
+    stopIncomingCall = null;
     hideLayer();
     if (!incoming) return;
     try { await update(ref(db, "calls/" + incoming.callId), { status: "declined", endedBy: uid(), endedAt: Date.now() }); } catch (_) {}
@@ -257,6 +262,17 @@ export function createCallSystem(api) {
         incomingCall = candidate;
         ensureLayer();
         showLayer(candidate.callerName, "Входящий аудиозвонок…", true);
+        if (stopIncomingCall) stopIncomingCall();
+        stopIncomingCall = onValue(ref(db, "calls/" + candidate.callId), callSnap => {
+          const call = callSnap.val();
+          if ((!call || call.status !== "ringing") && incomingCall?.callId === candidate.callId && !activeCallId) {
+            incomingCall = null;
+            if (stopIncomingCall) stopIncomingCall();
+            stopIncomingCall = null;
+            hideLayer();
+            remove(ref(db, "callInbox/" + uid() + "/" + candidate.callId)).catch(() => {});
+          }
+        });
         toast("Входящий звонок: " + (candidate.callerName || "пользователь"));
       } catch (e) { console.warn("NOVA incoming call:", e); }
     }, e => console.warn("NOVA call inbox listener:", e));
@@ -266,6 +282,8 @@ export function createCallSystem(api) {
   listenForCalls();
   return { startAudioCall, endCall, dispose() {
     if (stopInbox) stopInbox();
+    if (stopIncomingCall) stopIncomingCall();
+    stopIncomingCall = null;
     cleanupLocal();
     hideLayer();
   }};
