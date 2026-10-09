@@ -86,3 +86,25 @@ body{display:flex}.sidebar{width:260px;min-width:230px;flex-shrink:0;padding:26p
 .media-caption{padding:6px 4px 2px;font-size:10px;overflow-wrap:anywhere;color:#d4d6eb}
 .media-message small{display:block;padding:2px 4px 3px}
 @media(max-width:620px){.message-composer{gap:7px;padding:11px}.media-attach-button{width:39px}.message-bubble.media-message{max-width:88%}.chat-media-image,.chat-media-video{max-height:300px}}
+
+
+/* NOVA group chats */
+.chat-panel-actions{display:flex;align-items:center;gap:7px}
+.chat-panel-actions .icon-button{flex-shrink:0}
+.group-create-card{width:min(560px,100%)}
+.group-name-label{display:block;margin:18px 0 8px;color:#c8cbe2;font-size:11px;font-weight:700}
+.group-create-card #groupNameInput{width:100%;box-sizing:border-box;padding:12px 13px;border:1px solid #41435c;border-radius:11px;background:#151624;color:#f5f4ff;outline:none}
+.group-create-card #groupNameInput:focus{border-color:#9c87ff;box-shadow:0 0 0 3px #9c87ff18}
+.group-members-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:21px 0 10px;color:#ecebff;font-size:12px;font-weight:800}
+.group-members-heading span{color:#9297b5;font-size:10px;font-weight:500}
+.group-member-list{display:flex;flex-direction:column;gap:7px;max-height:300px;overflow:auto;padding:2px}
+.group-member-option{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid #35374e;border-radius:12px;background:#222437;cursor:pointer}
+.group-member-option:hover{border-color:#7868a0;background:#29283f}
+.group-member-option .avatar{width:38px;height:38px;flex-shrink:0;font-size:13px}
+.group-member-option>span{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.group-member-option strong{overflow:hidden;color:#f0efff;font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.group-member-option small{color:#999fbd;font-size:10px}
+.group-member-option input{width:17px;height:17px;accent-color:#9285ff;cursor:pointer}
+.group-create-card .full-button{margin-top:16px}
+.group-create-error{min-height:16px;margin:9px 0 0;color:#ff9ba9;font-size:11px}
+@media(max-width:620px){.chat-panel-actions{gap:4px}.chat-panel-actions .icon-button{width:34px;height:34px}.group-create-card{padding:24px 17px}}
