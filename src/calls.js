@@ -227,6 +227,8 @@ export function createCallSystem(api) {
       });
     } catch (e) {
       console.error("NOVA accept call error:", e);
+      try { await update(ref(db, "calls/" + incoming.callId), { status: "declined", endedBy: uid(), endedAt: Date.now() }); } catch (_) {}
+      try { await remove(ref(db, "callInbox/" + uid() + "/" + incoming.callId)); } catch (_) {}
       await endCall(false, "Не удалось принять звонок: " + (e?.message || "ошибка"));
     }
   }
