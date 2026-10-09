@@ -19,7 +19,7 @@ A dark, Aurora Glass-styled messenger built with **HTML, CSS, JavaScript, Fireba
 
 | Shortcut | Action |
 | --- | --- |
-| `Ctrl + K` (Windows/Linux) or `⌘ + K` (Mac) | Open Messages and focus the chat-list search |
+| `Enter` | Send the current message |\n| `Shift + Enter` | Add a new line without sending |\n| `Ctrl + K` (Windows/Linux) or `⌘ + K` (Mac) | Open Messages and focus the chat-list search |
 | `Esc` while conversation search is open | Close conversation search |
 
 ## Run locally
