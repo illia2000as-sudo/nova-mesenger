@@ -429,3 +429,12 @@ input:not([type=checkbox]):not([type=radio]),textarea,select{transition:border-c
  .conversation-status{display:none}
  .conversation-search-toggle{margin-left:auto}
 }
+
+
+/* Multi-line chat composer with comfortable keyboard behavior */
+.message-composer{align-items:flex-end}
+.message-composer textarea{flex:1;min-width:0;min-height:46px;max-height:140px;resize:none;overflow-y:auto;border:1px solid #34374e;background:#222435;color:white;border-radius:13px;padding:13px 14px;outline:0;font-size:13px;line-height:1.45;transition:border-color .18s ease,box-shadow .18s ease}
+.message-composer textarea:focus{border-color:#7778e8;box-shadow:0 0 0 3px #7778e814}
+.message-composer textarea::placeholder{color:#8d93ae}
+.message-composer .send-button{height:46px;flex-shrink:0}
+@media(max-width:620px){.message-composer{gap:7px;padding:11px}.message-composer textarea{padding:12px;font-size:16px}.message-composer .send-button{width:43px}}
