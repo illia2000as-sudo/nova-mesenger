@@ -121,7 +121,7 @@ function showAuth() {
   });
 }
 function shell() {
-  document.body.innerHTML = '<aside class="sidebar"><div class="brand"><div class="brand-mark">✦</div><div><h1>NOVA</h1><small>MESSENGER</small></div></div><button class="nav active" data-page="chats"><span>▤</span> Сообщения <b id="chatBadge" class="badge" hidden>0</b></button><button class="nav" data-page="friends"><span>♧</span> Друзья</button><button class="nav" data-page="requests"><span>♡</span> Заявки <b id="requestBadge" class="badge" hidden>0</b></button><button class="nav" data-page="gifts"><span>🎁</span> Подарки</button><button class="nav premium-nav" data-page="premium"><span>✧</span> NOVA Premium <em>SOON</em></button><button class="nav" data-page="profile"><span>⚙</span> Мой профиль</button><div class="sidebar-bottom"><div class="profile-mini"><div class="avatar" id="sideAvatar">N</div><div class="profile-text"><strong id="sideName">Загрузка…</strong><small id="sideHandle">@nova</small></div><button class="icon-button" id="logoutBtn" title="Выйти">↪</button></div><div class="connection"><i></i> Подключено к NOVA</div></div></aside><main class="main-shell"><header class="topbar"><div><div class="eyebrow">ТВОЁ ПРОСТРАНСТВО</div><h2 id="pageTitle">Сообщения</h2></div><div class="topbar-right"><span class="currency-pill">✦ <strong id="currencyBalance">50</strong> NOVA</span><span class="online-dot"></span><span>В сети</span></div></header><section id="content" class="content"></section></main><div id="toast" class="toast"></div>';
+  document.body.innerHTML = '<aside class="sidebar"><div class="brand"><div class="brand-mark">✦</div><div><h1>NOVA</h1><small>MESSENGER</small></div></div><button class="nav active" data-page="chats"><span>▤</span> Сообщения <b id="chatBadge" class="badge" hidden>0</b></button><button class="nav" data-page="friends"><span>♧</span> Друзья</button><button class="nav" data-page="requests"><span>♡</span> Заявки <b id="requestBadge" class="badge" hidden>0</b></button><button class="nav" data-page="gifts"><span>🎁</span> Подарки</button><button class="nav premium-nav" data-page="premium"><span>✧</span> NOVA Premium <em>'+(currentProfile?.premium ? "ACTIVE" : "SOON")+'</em></button><button class="nav" data-page="profile"><span>⚙</span> Мой профиль</button><div class="sidebar-bottom"><div class="profile-mini"><div class="avatar" id="sideAvatar">N</div><div class="profile-text"><strong id="sideName">Загрузка…</strong><small id="sideHandle">@nova</small></div><button class="icon-button" id="logoutBtn" title="Выйти">↪</button></div><div class="connection"><i></i> Подключено к NOVA</div></div></aside><main class="main-shell"><header class="topbar"><div><div class="eyebrow">ТВОЁ ПРОСТРАНСТВО</div><h2 id="pageTitle">Сообщения</h2></div><div class="topbar-right"><span class="currency-pill">✦ <strong id="currencyBalance">50</strong> NOVA</span><span class="online-dot"></span><span>В сети</span></div></header><section id="content" class="content"></section></main><div id="toast" class="toast"></div>';
   document.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => showPage(b.dataset.page)));
   $("#logoutBtn").addEventListener("click", async () => { try { await signOut(auth); } catch(e) { toast(errorText(e), true); } });
 }
@@ -371,7 +371,7 @@ async function sendMedia(file) {
   } catch(error) { toast(errorText(error),true); }
 }
 function renderProfilePage() {
-  $("#content").innerHTML = '<div class="page-wrap profile-page"><div class="page-intro"><div><span class="eyebrow">ТВОЙ АККАУНТ</span><h3>Мой профиль</h3><p>Управляй именем и информацией, которую видят другие.</p></div></div><form id="profileForm" class="profile-form"><div class="profile-hero">'+avatarMarkup(currentProfile,"large-avatar")+'<div><h3>'+esc(currentProfile.displayName||currentProfile.username)+'</h3><p>@'+esc(currentProfile.username)+'</p><span class="verified-label">✦ NOVA MEMBER</span></div></div><div class="avatar-upload-panel"><strong>Аватар профиля</strong><p>Фото: JPG, PNG, WEBP или GIF. Видео: MP4/WebM до 5 секунд.</p><div class="avatar-upload-actions"><label class="small-button avatar-file-button">Выбрать аватар<input id="avatarFileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><button class="small-button" id="removeAvatarBtn" type="button" '+(currentProfile.avatarUrl?"":"disabled")+ '>Убрать аватар</button></div></div><label for="displayNameInput">Отображаемое имя</label><input id="displayNameInput" maxlength="40" required value="'+esc(currentProfile.displayName||currentProfile.username)+'"><label for="bioInput">О себе</label><textarea id="bioInput" maxlength="160" rows="3" placeholder="Расскажи немного о себе…">'+esc(currentProfile.bio||"")+'</textarea><label>Электронная почта</label><input value="'+esc(currentUser.email||"")+'" disabled><label>Имя пользователя</label><input value="@'+esc(currentProfile.username)+'" disabled><button class="primary-button" type="submit">Сохранить изменения <span>→</span></button><p id="profileMessage"></p></form></div>';
+  $("#content").innerHTML = '<div class="page-wrap profile-page"><div class="page-intro"><div><span class="eyebrow">ТВОЙ АККАУНТ</span><h3>Мой профиль</h3><p>Управляй именем и информацией, которую видят другие.</p></div></div><form id="profileForm" class="profile-form"><div class="profile-hero">'+avatarMarkup(currentProfile,"large-avatar")+'<div><h3>'+esc(currentProfile.displayName||currentProfile.username)+'</h3><p>@'+esc(currentProfile.username)+'</p><span class="verified-label">'+(currentProfile?.premium ? "✦ NOVA PREMIUM" : "✦ NOVA MEMBER")+'</span></div></div><div class="avatar-upload-panel"><strong>Аватар профиля</strong><p>Фото: JPG, PNG, WEBP или GIF. Видео: MP4/WebM до 5 секунд.</p><div class="avatar-upload-actions"><label class="small-button avatar-file-button">Выбрать аватар<input id="avatarFileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><button class="small-button" id="removeAvatarBtn" type="button" '+(currentProfile.avatarUrl?"":"disabled")+ '>Убрать аватар</button></div></div><label for="displayNameInput">Отображаемое имя</label><input id="displayNameInput" maxlength="40" required value="'+esc(currentProfile.displayName||currentProfile.username)+'"><label for="bioInput">О себе</label><textarea id="bioInput" maxlength="160" rows="3" placeholder="Расскажи немного о себе…">'+esc(currentProfile.bio||"")+'</textarea><label>Электронная почта</label><input value="'+esc(currentUser.email||"")+'" disabled><label>Имя пользователя</label><input value="@'+esc(currentProfile.username)+'" disabled><button class="primary-button" type="submit">Сохранить изменения <span>→</span></button><p id="profileMessage"></p></form></div>';
   $("#avatarFileInput").addEventListener("change", async e => { const file = e.target.files && e.target.files[0]; e.target.value = ""; if (file) await saveAvatar(file); });
   $("#removeAvatarBtn").addEventListener("click", removeAvatar);
   $("#profileForm").addEventListener("submit",async e=>{
@@ -420,13 +420,33 @@ async function bootUser(user) {
     currentProfile.displayName = currentProfile.displayName || user.displayName || currentProfile.username;
     currentProfile.bio = currentProfile.bio || "Привет! Я в NOVA.";
     if (currentProfile.coins == null) { currentProfile.coins = 50; try { await update(ref(db,"users/"+user.uid), {coins:50}); } catch (_) {} }
-    // Секретный ник: одноразовая награда для аккаунта NOVA INFINITY.
-    if (String(currentProfile.username || "").toLowerCase() === "nova_infinity" && currentProfile.secretRewardClaimed !== true) {
-      const reward = {coins:999999999,premium:true,secretRewardClaimed:true,secretRewardAt:Date.now()};
-      try { await update(ref(db,"users/"+user.uid),reward); Object.assign(currentProfile,reward); toast("Секрет разблокирован! +999 999 999 NOVA и NOVA Premium навсегда ✦"); }
-      catch (rewardError) { console.warn("Не удалось применить секретную награду:",rewardError); }
+    // Секретный ник: выдаём награду один раз, а Premium восстанавливаем,
+    // если флаг награды уже был сохранён, но premium по какой-то причине отсутствует.
+    let secretRewardNotice = "";
+    if (uname(currentProfile.username) === "nova_infinity") {
+      if (currentProfile.secretRewardClaimed !== true) {
+        const reward = {coins:999999999,premium:true,secretRewardClaimed:true,secretRewardAt:Date.now()};
+        try {
+          await update(ref(db,"users/"+user.uid),reward);
+          Object.assign(currentProfile,reward);
+          secretRewardNotice = "Секрет разблокирован! +999 999 999 NOVA и NOVA Premium навсегда ✦";
+        } catch (rewardError) {
+          console.warn("Не удалось применить секретную награду:",rewardError);
+          secretRewardNotice = "Ник NOVA INFINITY найден, но Firebase не сохранил награду. Проверь правила базы данных.";
+        }
+      } else if (currentProfile.premium !== true) {
+        try {
+          await update(ref(db,"users/"+user.uid),{premium:true});
+          currentProfile.premium = true;
+          secretRewardNotice = "NOVA Premium восстановлен для NOVA INFINITY ✦";
+        } catch (rewardError) {
+          console.warn("Не удалось восстановить NOVA Premium:",rewardError);
+          secretRewardNotice = "Не удалось восстановить Premium: Firebase отклонил запись. Проверь правила базы данных.";
+        }
+      }
     }
     shell(); updateSidebar(); listenData();
+    if (secretRewardNotice) toast(secretRewardNotice, secretRewardNotice.includes("не сохранил") || secretRewardNotice.includes("Не удалось"));
     if (callSystem) callSystem.dispose();
     callSystem = createCallSystem({ db, ref, set, get, onValue, update, remove, push, toast, esc, initial, getUser: () => currentUser });
     showPage("chats");
