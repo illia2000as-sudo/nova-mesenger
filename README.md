@@ -7,6 +7,8 @@ A dark, Aurora Glass-styled messenger built with **HTML, CSS, JavaScript, Fireba
 - **Accounts and profiles** — email/password sign-in, profile names and avatars.
 - **Live conversations** — personal chats and group chats powered by Firebase Realtime Database.
 - **Chat search** — search messages inside the open conversation.
+- **Saved drafts** — unsent text is kept locally per conversation on this device.
+- **Optional desktop notifications** — enable them from the bell button in an open chat; notifications require OS/browser permission and are sent for new messages in that currently open chat while the app is in the background.
 - **Smart scrolling** — incoming messages won't yank you away from older messages while you're reading; use the floating arrow to jump to the latest message.
 - **Mobile chat navigation** — open a conversation, then use the back arrow to return to the chat list.
 - **Friends and requests** — find people and manage friend requests.
