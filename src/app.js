@@ -17,7 +17,7 @@ const auth = getAuth(firebaseApp);
 const db = getDatabase(firebaseApp);
 const $ = (s) => document.querySelector(s);
 let currentUser = null, currentProfile = null, currentPage = "chats", activeChatId = null, activeChatUser = null;
-let stopUserChats = null, stopMessages = null, stopRequests = null;
+let stopUserChats = null, stopMessages = null, stopRequests = null, stopCoins = null;
 let callSystem = null;
 let cachedChats = {}, cachedFriends = {}, cachedRequests = {};
 
@@ -40,7 +40,8 @@ function stopListeners() {
   if (stopUserChats) stopUserChats();
   if (stopMessages) stopMessages();
   if (stopRequests) stopRequests();
-  stopUserChats = stopMessages = stopRequests = null;
+  if (stopCoins) stopCoins();
+  stopUserChats = stopMessages = stopRequests = stopCoins = null;
 }
 function showAuth() {
   stopListeners();
@@ -71,7 +72,7 @@ function showAuth() {
           const claim = await runTransaction(ref(db, "usernameIndex/" + username), value => value === null ? credential.user.uid : undefined);
           if (!claim.committed) throw new Error("Этот ник уже занят. Выбери другой.");
           await updateProfile(credential.user, {displayName: username});
-          await set(ref(db, "users/" + credential.user.uid), {uid:credential.user.uid, username, usernameLower:username, displayName:username, bio:"Привет! Я в NOVA.", createdAt:Date.now()});
+          await set(ref(db, "users/" + credential.user.uid), {uid:credential.user.uid, username, usernameLower:username, displayName:username, bio:"Привет! Я в NOVA.", coins:50, createdAt:Date.now()});
         } catch (profileError) {
           try { await deleteUser(credential.user); } catch (_) {}
           throw profileError;
@@ -86,7 +87,7 @@ function showAuth() {
   });
 }
 function shell() {
-  document.body.innerHTML = '<aside class="sidebar"><div class="brand"><div class="brand-mark">✦</div><div><h1>NOVA</h1><small>MESSENGER</small></div></div><button class="nav active" data-page="chats"><span>▤</span> Сообщения <b id="chatBadge" class="badge" hidden>0</b></button><button class="nav" data-page="friends"><span>♧</span> Друзья</button><button class="nav" data-page="requests"><span>♡</span> Заявки <b id="requestBadge" class="badge" hidden>0</b></button><button class="nav premium-nav" data-page="premium"><span>✧</span> NOVA Premium <em>SOON</em></button><button class="nav" data-page="profile"><span>⚙</span> Мой профиль</button><div class="sidebar-bottom"><div class="profile-mini"><div class="avatar" id="sideAvatar">N</div><div class="profile-text"><strong id="sideName">Загрузка…</strong><small id="sideHandle">@nova</small></div><button class="icon-button" id="logoutBtn" title="Выйти">↪</button></div><div class="connection"><i></i> Подключено к NOVA</div></div></aside><main class="main-shell"><header class="topbar"><div><div class="eyebrow">ТВОЁ ПРОСТРАНСТВО</div><h2 id="pageTitle">Сообщения</h2></div><div class="topbar-right"><span class="online-dot"></span><span>В сети</span></div></header><section id="content" class="content"></section></main><div id="toast" class="toast"></div>';
+  document.body.innerHTML = '<aside class="sidebar"><div class="brand"><div class="brand-mark">✦</div><div><h1>NOVA</h1><small>MESSENGER</small></div></div><button class="nav active" data-page="chats"><span>▤</span> Сообщения <b id="chatBadge" class="badge" hidden>0</b></button><button class="nav" data-page="friends"><span>♧</span> Друзья</button><button class="nav" data-page="requests"><span>♡</span> Заявки <b id="requestBadge" class="badge" hidden>0</b></button><button class="nav" data-page="gifts"><span>🎁</span> Подарки</button><button class="nav premium-nav" data-page="premium"><span>✧</span> NOVA Premium <em>SOON</em></button><button class="nav" data-page="profile"><span>⚙</span> Мой профиль</button><div class="sidebar-bottom"><div class="profile-mini"><div class="avatar" id="sideAvatar">N</div><div class="profile-text"><strong id="sideName">Загрузка…</strong><small id="sideHandle">@nova</small></div><button class="icon-button" id="logoutBtn" title="Выйти">↪</button></div><div class="connection"><i></i> Подключено к NOVA</div></div></aside><main class="main-shell"><header class="topbar"><div><div class="eyebrow">ТВОЁ ПРОСТРАНСТВО</div><h2 id="pageTitle">Сообщения</h2></div><div class="topbar-right"><span class="currency-pill">✦ <strong id="currencyBalance">50</strong> NOVA</span><span class="online-dot"></span><span>В сети</span></div></header><section id="content" class="content"></section></main><div id="toast" class="toast"></div>';
   document.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => showPage(b.dataset.page)));
   $("#logoutBtn").addEventListener("click", async () => { try { await signOut(auth); } catch(e) { toast(errorText(e), true); } });
 }
@@ -102,6 +103,7 @@ function listenData() {
     const badge = $("#chatBadge"); if (badge) badge.hidden = Object.keys(cachedChats).length === 0;
     if (currentPage === "chats") { if (activeChatId) renderChatListOnly(); else renderChatsPage(); }
   }, e => toast(errorText(e), true));
+  stopCoins = onValue(ref(db, "users/" + currentUser.uid + "/coins"), snap => { currentProfile.coins = Number(snap.val() ?? 50); updateCurrencyDisplay(); if (currentPage === "gifts") renderGiftShopPage(); }, e => toast(errorText(e), true));
   stopRequests = onValue(ref(db, "friendRequests/" + currentUser.uid), snap => {
     cachedRequests = snap.val() || {};
     const badge = $("#requestBadge");
@@ -113,11 +115,12 @@ function showPage(page) {
   currentPage = page; activeChatId = null; activeChatUser = null;
   if (stopMessages) { stopMessages(); stopMessages = null; }
   document.querySelectorAll("[data-page]").forEach(b => b.classList.toggle("active", b.dataset.page === page));
-  const titles = {chats:"Сообщения",friends:"Друзья",requests:"Заявки в друзья",profile:"Мой профиль",premium:"NOVA Premium"};
+  const titles = {chats:"Сообщения",friends:"Друзья",requests:"Заявки в друзья",gifts:"Подарки NOVA",profile:"Мой профиль",premium:"NOVA Premium"};
   $("#pageTitle").textContent = titles[page] || "NOVA";
   if (page === "chats") renderChatsPage();
   else if (page === "friends") renderFriendsPage();
   else if (page === "requests") renderRequestsPage();
+  else if (page === "gifts") renderGiftShopPage();
   else if (page === "profile") renderProfilePage();
   else renderPremiumPage();
 }
@@ -140,7 +143,8 @@ function renderChatListOnly() {
 async function openChat(chatId, info) {
   activeChatId = chatId; activeChatUser = info || {}; renderChatListOnly();
   const stage = $("#chatStage"); if (!stage) return;
-  stage.innerHTML = '<div class="conversation-head"><div class="avatar">'+initial(activeChatUser.displayName||activeChatUser.username)+'</div><div><strong>'+esc(activeChatUser.displayName||activeChatUser.username||"Диалог")+'</strong><small>@'+esc(activeChatUser.username||"user")+'</small></div><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Позвонить</span></button><span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…" required><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  stage.innerHTML = '<div class="conversation-head"><div class="avatar">'+initial(activeChatUser.displayName||activeChatUser.username)+'</div><div><strong>'+esc(activeChatUser.displayName||activeChatUser.username||"Диалог")+'</strong><small>@'+esc(activeChatUser.username||"user")+'</small></div><button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Позвонить</span></button><span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…" required><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  $("#giftOpenBtn").addEventListener("click", openGiftPicker);
   $("#audioCallBtn").addEventListener("click", () => {
     if (!callSystem) return toast("Система звонков ещё запускается.", true);
     callSystem.startAudioCall({...activeChatUser, chatId});
@@ -149,7 +153,7 @@ async function openChat(chatId, info) {
   stopMessages = onValue(ref(db, "messages/" + chatId), snap => {
     const messages = Object.entries(snap.val() || {}).sort((a,b)=>(a[1].createdAt||0)-(b[1].createdAt||0));
     const box = $("#messageList"); if (!box) return;
-    box.innerHTML = messages.length ? messages.map(x => '<div class="message-row '+(x[1].senderUid===currentUser.uid?"mine":"")+'"><div class="message-bubble"><div>'+esc(x[1].text).replace(/\n/g,"<br>")+'</div><small>'+timeLabel(x[1].createdAt||Date.now())+(x[1].senderUid===currentUser.uid?" · Вы":"")+'</small></div></div>').join("") : '<div class="empty-messages"><span>✦</span><p>Это начало вашей истории. Напиши первым!</p></div>';
+    box.innerHTML = messages.length ? messages.map(x => x[1].type === "gift" ? renderGiftMessage(x[1]) : '<div class="message-row '+(x[1].senderUid===currentUser.uid?"mine":"")+'"><div class="message-bubble"><div>'+esc(x[1].text).replace(/\n/g,"<br>")+'</div><small>'+timeLabel(x[1].createdAt||Date.now())+(x[1].senderUid===currentUser.uid?" · Вы":"")+'</small></div></div>').join("") : '<div class="empty-messages"><span>✦</span><p>Это начало вашей истории. Напиши первым!</p></div>';
     box.scrollTop = box.scrollHeight;
   }, e => toast(errorText(e), true));
   $("#messageForm").addEventListener("submit", async e => {
@@ -246,6 +250,14 @@ async function startChat(friendUid, known) {
     showPage("chats"); setTimeout(()=>openChat(id,cachedChats[id]||mine),150);
   } catch(e) { toast(errorText(e),true); }
 }
+
+const NOVA_GIFTS=[{id:"rose",name:"Роза",emoji:"🌹",price:5,desc:"Маленький знак внимания"},{id:"heart",name:"Сердце",emoji:"💝",price:10,desc:"Для особенного человека"},{id:"coffee",name:"Кофе",emoji:"☕",price:15,desc:"Чтобы день стал лучше"},{id:"teddy",name:"Мишка",emoji:"🧸",price:20,desc:"Мягкий и уютный подарок"},{id:"cake",name:"Торт",emoji:"🎂",price:25,desc:"Для праздника"},{id:"bouquet",name:"Букет",emoji:"💐",price:35,desc:"Красивый большой букет"},{id:"rocket",name:"Ракета",emoji:"🚀",price:50,desc:"На максимальной скорости"}];
+function updateCurrencyDisplay(){const n=$("#currencyBalance");if(n)n.textContent=String(Math.max(0,Number(currentProfile?.coins??50)));}
+function renderGiftMessage(g){const mine=g.senderUid===currentUser.uid, item=NOVA_GIFTS.find(x=>x.id===g.giftId)||{emoji:g.giftEmoji||"🎁",name:g.giftName||"Подарок",price:g.price||0};return '<div class="message-row '+(mine?"mine":"")+'"><div class="gift-message-card"><div class="gift-message-emoji">'+item.emoji+'</div><strong>'+esc(item.name)+'</strong><p>'+(mine?"Ты отправил(а) подарок":"Тебе отправили подарок")+'</p><small>'+timeLabel(g.createdAt||Date.now())+' · ✦ '+item.price+' NOVA</small></div></div>';}
+function renderGiftShopPage(){const balance=Math.max(0,Number(currentProfile?.coins??50));$("#content").innerHTML='<div class="page-wrap gift-shop-page"><section class="gift-shop-hero"><div><span class="eyebrow">NOVA GIFT STORE</span><h3>Дарить — приятно ✨</h3><p>Отправляй друзьям подарки прямо в личном чате. Подарок появится красивой карточкой в переписке.</p></div><div class="gift-wallet"><span>ТВОЙ БАЛАНС</span><strong>✦ '+balance+'</strong><small>NOVA-монет</small></div></section><div class="gift-shop-heading"><div><h3>Витрина подарков</h3><p>Чтобы отправить, открой чат с другом.</p></div><span>7 подарков</span></div><div class="gift-catalog">'+NOVA_GIFTS.map(g=>'<article class="gift-product"><div class="gift-product-emoji">'+g.emoji+'</div><h4>'+g.name+'</h4><p>'+g.desc+'</p><div class="gift-product-bottom"><strong>✦ '+g.price+'</strong><button class="small-button" data-gift-shop="'+g.id+'">Выбрать</button></div></article>').join("")+'</div><div class="gift-info-note">🎁 Каждый аккаунт получает стартовые 50 NOVA-монет. Это внутренняя валюта приложения, не реальные деньги.</div></div>';$("#content").querySelectorAll("[data-gift-shop]").forEach(b=>b.addEventListener("click",()=>{const g=NOVA_GIFTS.find(x=>x.id===b.dataset.giftShop);if(g){if(activeChatId)sendGift(g);else toast("Сначала открой чат с другом.");}}));}
+function openGiftPicker(){const gifts=NOVA_GIFTS.map(g=>'<button class="gift-choice" data-gift-choice="'+g.id+'"><span>'+g.emoji+'</span><strong>'+g.name+'</strong><small>✦ '+g.price+'</small></button>').join("");let layer=$("#giftPickerLayer");if(layer)layer.remove();layer=document.createElement("div");layer.id="giftPickerLayer";layer.className="gift-picker-layer";layer.innerHTML='<section class="gift-picker-card"><button class="gift-picker-close" id="giftPickerClose">×</button><span class="eyebrow">NOVA GIFT STORE</span><h3>Выбери подарок</h3><p>Баланс: <strong>✦ '+Number(currentProfile?.coins??50)+' NOVA</strong></p><div class="gift-choice-grid">'+gifts+'</div></section>';document.body.appendChild(layer);$("#giftPickerClose").addEventListener("click",()=>layer.remove());layer.addEventListener("click",e=>{if(e.target===layer)layer.remove();});layer.querySelectorAll("[data-gift-choice]").forEach(b=>b.addEventListener("click",()=>{const g=NOVA_GIFTS.find(x=>x.id===b.dataset.giftChoice);layer.remove();if(g)sendGift(g);}));}
+async function sendGift(gift){if(!activeChatId||!activeChatUser?.withUid)return toast("Сначала открой личный чат с другом.",true);if(activeChatUser.withUid===currentUser.uid)return toast("Себе подарки отправлять нельзя.",true);let charged=false;try{const result=await runTransaction(ref(db,"users/"+currentUser.uid+"/coins"),n=>{n=Number(n??50);return n>=gift.price?n-gift.price:undefined;});if(!result.committed)return toast("Не хватает NOVA-монет на этот подарок.",true);charged=true;currentProfile.coins=Number(result.snapshot.val()||0);updateCurrencyDisplay();const now=Date.now(),m=push(ref(db,"messages/"+activeChatId));await set(m,{type:"gift",giftId:gift.id,giftName:gift.name,giftEmoji:gift.emoji,price:gift.price,senderUid:currentUser.uid,recipientUid:activeChatUser.withUid,createdAt:now});const u={};u["chats/"+activeChatId+"/lastMessage"]="🎁 Подарок: "+gift.name;u["chats/"+activeChatId+"/updatedAt"]=now;u["userChats/"+currentUser.uid+"/"+activeChatId+"/lastMessage"]="🎁 Подарок: "+gift.name;u["userChats/"+currentUser.uid+"/"+activeChatId+"/lastMessageAt"]=now;u["userChats/"+activeChatUser.withUid+"/"+activeChatId+"/lastMessage"]="🎁 Подарок: "+gift.name;u["userChats/"+activeChatUser.withUid+"/"+activeChatId+"/lastMessageAt"]=now;await update(ref(db),u);toast("Подарок «"+gift.name+"» отправлен!");}catch(e){if(charged){try{await runTransaction(ref(db,"users/"+currentUser.uid+"/coins"),n=>Number(n??0)+gift.price);currentProfile.coins=Number(currentProfile.coins||0)+gift.price;updateCurrencyDisplay();}catch(_){}}toast(errorText(e),true);}}
+
 function renderPremiumPage() {
   $("#content").innerHTML = '<div class="page-wrap premium-page"><section class="premium-hero"><div class="premium-orb">✦</div><div class="premium-kicker">NOVA · БОЛЬШЕ ВОЗМОЖНОСТЕЙ</div><h3>Общайся <span>без границ</span></h3><p>Premium задуман для тех, кто хочет поддержать развитие NOVA и получить больше возможностей. Сейчас это предварительный экран: реальные платежи ещё не подключены.</p><div class="premium-pills"><span>✦ Ранний доступ</span><span>◈ Особые темы</span><span>♡ Поддержка проекта</span></div></section><div class="premium-section-heading"><div><span class="eyebrow">ТВОЙ ТАРИФ</span><h3>Выбери свой NOVA</h3></div><span class="plan-status">Сейчас: Бесплатный</span></div><div class="premium-plans"><article class="plan-card"><div class="plan-top"><div class="plan-icon free-icon">✦</div><span class="plan-label">ДЛЯ ВСЕХ</span></div><h4>NOVA Free</h4><div class="plan-price">$0 <small>/ навсегда</small></div><p class="plan-description">Всё необходимое для общения с друзьями.</p><ul><li>✓ Личные сообщения</li><li>✓ Друзья и заявки</li><li>✓ Настройка профиля</li><li>✓ Синхронизация в реальном времени</li></ul><div class="current-plan">ТВОЙ ТЕКУЩИЙ ТАРИФ</div></article><article class="plan-card premium-plan"><div class="plan-top"><div class="plan-icon premium-icon">✧</div><span class="plan-label">В РАЗРАБОТКЕ</span></div><h4>NOVA Premium</h4><div class="plan-price">$0.99 <small>/ месяц · планируемая цена</small></div><p class="plan-description">Больше персонализации и способ поддержать развитие приложения.</p><ul><li>✦ Эксклюзивные темы оформления</li><li>✦ Дополнительные настройки профиля</li><li>✦ Значок Premium</li><li>✦ Ранний доступ к новым функциям</li></ul><button class="premium-disabled-button" disabled>Скоро появится</button><p class="payment-note">Оплата отключена. Сейчас деньги не списываются.</p></article></div><section class="premium-roadmap"><div class="roadmap-icon">↗</div><div><strong>Сначала — стабильный мессенджер</strong><p>Перед запуском подписки мы проверим чаты, защиту аккаунтов и работу приложения. Цена и функции могут измениться до официального запуска.</p></div></section></div>';
 }
@@ -274,6 +286,7 @@ async function bootUser(user) {
         usernameLower: fallbackUsername.toLowerCase(),
         displayName: user.displayName || fallbackUsername,
         bio: "Привет! Я в NOVA.",
+        coins: 50,
         createdAt: Date.now()
       };
       try {
@@ -295,6 +308,7 @@ async function bootUser(user) {
     currentProfile.username = currentProfile.username || String(user.displayName || (user.email || "nova_user").split("@")[0]).toLowerCase().replace(/[^a-z0-9_]/g,"_").slice(0,24);
     currentProfile.displayName = currentProfile.displayName || user.displayName || currentProfile.username;
     currentProfile.bio = currentProfile.bio || "Привет! Я в NOVA.";
+    if (currentProfile.coins == null) { currentProfile.coins = 50; try { await update(ref(db,"users/"+user.uid), {coins:50}); } catch (_) {} }
     shell(); updateSidebar(); listenData();
     if (callSystem) callSystem.dispose();
     callSystem = createCallSystem({ db, ref, set, get, onValue, update, remove, push, toast, esc, initial, getUser: () => currentUser });
@@ -306,7 +320,7 @@ async function bootUser(user) {
       uid: user.uid,
       username: String(user.displayName || (user.email || "nova_user").split("@")[0]).toLowerCase().replace(/[^a-z0-9_]/g,"_").slice(0,24) || "nova_user",
       displayName: user.displayName || "Пользователь NOVA",
-      bio: "Привет! Я в NOVA."
+      bio: "Привет! Я в NOVA.", coins: 50
     };
     shell(); updateSidebar(); listenData();
     if (callSystem) callSystem.dispose();
