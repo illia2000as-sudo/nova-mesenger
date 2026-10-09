@@ -25,3 +25,50 @@
     }
   }
 }
+{
+  "name": "nova-messenger",
+  "version": "1.0.0",
+  "description": "NOVA Messenger for Windows",
+  "main": "main.js",
+  "author": "NOVA",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --publish never"
+  },
+  "dependencies": {
+    "firebase": "^12.4.0"
+  },
+  "devDependencies": {
+    "electron": "^38.2.0",
+    "electron-builder": "^26.2.0"
+  },
+  "build": {
+    "appId": "com.nova.messenger",
+    "productName": "NOVA Messenger",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "files": [
+      "main.js",
+      "src/**/*",
+      "package.json"
+    ]
+  }
+}
