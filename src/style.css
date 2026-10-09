@@ -415,3 +415,17 @@ input:not([type=checkbox]):not([type=radio]),textarea,select{transition:border-c
  .jump-to-latest{right:12px;bottom:75px}
  .conversation-search-toggle{width:32px;height:32px}
 }
+
+
+/* Mobile chat navigation: keep conversations usable on narrow screens */
+.mobile-chat-back{display:none;flex-shrink:0;width:34px;height:34px;border:1px solid #ffffff14;border-radius:11px;background:#ffffff08;color:#e9e7ff;font-size:20px;cursor:pointer}
+@media(max-width:720px){
+ .chat-layout.has-open-chat .chat-list-panel{display:none}
+ .chat-layout.has-open-chat .chat-stage{display:flex;min-height:calc(100vh - 108px);height:calc(100vh - 108px)}
+ .mobile-chat-back{display:grid;place-items:center}
+ .conversation-head{gap:8px;padding:0 12px}
+ .conversation-head .avatar{flex-shrink:0}
+ .conversation-title{flex:1;min-width:0}
+ .conversation-status{display:none}
+ .conversation-search-toggle{margin-left:auto}
+}
