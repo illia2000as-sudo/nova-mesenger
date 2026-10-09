@@ -182,7 +182,7 @@ async function openChat(chatId, info) {
   const isGroup = activeChatUser.isGroup === true;
   const chatTitle = activeChatUser.groupName || activeChatUser.displayName || activeChatUser.username || "Диалог";
   const chatSubtitle = isGroup ? ("Группа · " + Number(activeChatUser.memberCount || (activeChatUser.memberUids || []).length || 0) + " участников") : ("@" + (activeChatUser.username || "user"));
-  stage.innerHTML = '<div class="conversation-head">'+avatarMarkup(activeChatUser)+'<div><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Позвонить</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…"><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  stage.innerHTML = '<div class="conversation-head">'+avatarMarkup(activeChatUser)+'<div><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Звонок</span></button><button id="videoCallBtn" class="call-start-button video-call-start-button" type="button" title="Начать видеозвонок">📹 <span>Видео</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…"><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
   const giftButton = $("#giftOpenBtn"); if (giftButton) giftButton.addEventListener("click", openGiftPicker);
   const groupManageButton = $("#groupManageBtn"); if (groupManageButton) groupManageButton.addEventListener("click", () => openManageGroup(chatId, activeChatUser));
   $("#mediaInput").addEventListener("change", async e => { const file = e.target.files && e.target.files[0]; e.target.value = ""; if (file) await sendMedia(file); });
@@ -190,6 +190,11 @@ async function openChat(chatId, info) {
   if (callButton) callButton.addEventListener("click", () => {
     if (!callSystem) return toast("Система звонков ещё запускается.", true);
     callSystem.startAudioCall({...activeChatUser, chatId});
+  });
+  const videoCallButton = $("#videoCallBtn");
+  if (videoCallButton) videoCallButton.addEventListener("click", () => {
+    if (!callSystem) return toast("Система звонков ещё запускается.", true);
+    callSystem.startVideoCall({...activeChatUser, chatId});
   });
   if (stopMessages) stopMessages();
   stopMessages = onValue(ref(db, "messages/" + chatId), snap => {
