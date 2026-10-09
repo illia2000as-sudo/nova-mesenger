@@ -1,7 +1,7 @@
 {
   "name": "nova-messenger",
-  "version": "1.0.0",
-  "description": "NOVA Messenger for Windows",
+  "version": "1.1.0",
+  "description": "NOVA Messenger for Windows — Premium preview update",
   "main": "main.js",
   "author": "NOVA",
   "license": "MIT",
