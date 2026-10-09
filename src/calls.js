@@ -258,7 +258,7 @@ export function createCallSystem(api) {
       });
       await flushLocalCandidates(incoming.callId);
       await remove(ref(db, "callInbox/" + uid() + "/" + incoming.callId));
-      setStatus("Соединяем голос…");
+      setStatus(activeCallType === "video" ? "Соединяем видео…" : "Соединяем голос…");
       stopCall = onValue(ref(db, "calls/" + incoming.callId), snap2 => {
         const call = snap2.val();
         if (!call || ["ended", "declined", "missed"].includes(call.status)) {
