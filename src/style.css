@@ -28,3 +28,30 @@ body{display:flex}.sidebar{width:260px;min-width:230px;flex-shrink:0;padding:26p
 .premium-roadmap{display:flex;align-items:flex-start;gap:13px;padding:17px 19px;margin-top:17px;border:1px solid #2f3348;border-radius:15px;background:#1a1c2a}.roadmap-icon{flex-shrink:0;width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#292c43;color:#aaa7ff;font-size:18px}.premium-roadmap strong{font-size:12px}.premium-roadmap p{font-size:10px;color:#999fba;line-height:1.75;margin:6px 0 0}
 @media(max-width:720px){.premium-plans{grid-template-columns:1fr}.premium-hero{padding:25px 22px}.premium-hero:after{right:15px;font-size:100px}.premium-section-heading{align-items:flex-start;flex-direction:column}.plan-description{min-height:0}}
 @media(max-width:620px){.premium-nav em{display:none}.premium-nav>span{font-size:20px}.premium-page{padding:16px}.premium-hero h3{font-size:28px}}
+
+
+/* NOVA voice calls */
+.call-start-button{margin-left:auto;display:inline-flex;align-items:center;gap:8px;padding:9px 13px;border:1px solid #4c4d78;border-radius:10px;background:linear-gradient(120deg,#34365a,#292b45);color:#d4d3ff;font-size:11px;font-weight:700;white-space:nowrap}
+.call-start-button:hover{border-color:#8584ff;background:#393b63}
+.call-layer{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:#080912c9;backdrop-filter:blur(12px)}
+.call-layer[hidden]{display:none}
+.call-card{width:min(410px,100%);padding:32px 28px 24px;text-align:center;border:1px solid #4b4d70;border-radius:26px;background:radial-gradient(ellipse at 50% 0%,#7774f42c,transparent 55%),linear-gradient(155deg,#222438,#151622);box-shadow:0 30px 100px #0009}
+.call-orb{width:82px;height:82px;margin:0 auto 19px;display:grid;place-items:center;border-radius:28px;background:linear-gradient(145deg,#777cf4,#9a7ee9);color:white;font-size:34px;box-shadow:0 0 55px #7977ff35;animation:novaCallPulse 2.2s ease-in-out infinite}
+.call-eyebrow{font-size:9px;letter-spacing:2.5px;font-weight:800;color:#aaa7ff}
+.call-card h2{margin:9px 0;font-size:24px}
+.call-person{margin:0;color:#d7d9ec;font-size:14px}
+.call-status{min-height:18px;margin:12px 0 23px;color:#9da3c1;font-size:12px}
+#callRemoteAudio{display:none}
+.call-controls{display:flex;justify-content:center;align-items:center;gap:22px;margin:12px 0 17px}
+.call-control{width:56px;height:56px;border:1px solid #454862;border-radius:19px;background:#2c2f47;color:#f2f2ff;font-size:21px}
+.call-control:hover{filter:brightness(1.15)}
+.call-control.muted{background:#55402e;border-color:#806044}
+.call-control.hangup{background:linear-gradient(145deg,#f05e78,#c93859);border:0;border-radius:50%;transform:rotate(135deg);box-shadow:0 8px 28px #d84b6535}
+.call-incoming-actions{display:flex;gap:10px;margin-top:8px}
+.call-incoming-actions[hidden]{display:none}
+.call-incoming-actions button{flex:1;border:0;border-radius:11px;padding:13px 10px;color:white;font-size:12px;font-weight:700}
+.call-reject{background:#3b2b3a;border:1px solid #744255!important}
+.call-accept{background:linear-gradient(120deg,#2b9d75,#37b68a)}
+.call-footnote{margin:19px 0 0;color:#777e9b;font-size:10px}
+@keyframes novaCallPulse{0%,100%{box-shadow:0 0 35px #7977ff25;transform:scale(1)}50%{box-shadow:0 0 55px #7977ff55;transform:scale(1.035)}}
+@media(max-width:620px){.call-start-button{padding:8px 9px}.call-start-button span{display:none}.conversation-head{padding:0 12px;gap:8px}.call-card{padding:27px 20px 22px}}
