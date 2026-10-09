@@ -252,8 +252,12 @@ async function bootUser(user) {
   currentUser = user;
   try {
     const snap = await get(ref(db,"users/"+user.uid));
-    if (!snap.exists()) { await signOut(auth); return; }
-    currentProfile = snap.val();
+    if (!snap.exists()) {
+      await new Promise(resolve => setTimeout(resolve, 900));
+      const retry = await get(ref(db,"users/"+user.uid));
+      if (!retry.exists()) { await signOut(auth); return; }
+      currentProfile = retry.val();
+    } else currentProfile = snap.val();
     shell(); updateSidebar(); listenData(); showPage("chats");
   } catch(e) { showAuth(); const p=document.createElement("p");p.className="error-text";p.textContent="Не удалось загрузить профиль: "+errorText(e);$(".auth-card").appendChild(p); }
 }
