@@ -148,20 +148,25 @@ export function createCallSystem(api) {
       localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       const callRef = push(ref(db, "calls"));
       const callId = callRef.key;
-      activeCallId = callId;
-      await createPeer(callId, otherUid);
-      const offer = await peer.createOffer();
-      await peer.setLocalDescription(offer);
       const me = getUser();
-      await set(callRef, {
+      activeCallId = callId;
+      const callBase = {
         callerUid: me.uid,
         calleeUid: otherUid,
         callerName: me.displayName || me.email?.split("@")[0] || "Пользователь NOVA",
         calleeName: friend.displayName || friend.username || "Пользователь NOVA",
         members: { [me.uid]: true, [otherUid]: true },
-        status: "ringing",
-        offer: { type: offer.type, sdp: offer.sdp },
+        status: "preparing",
         createdAt: Date.now()
+      };
+      // Create the members record first so Firebase rules permit candidate listeners.
+      await set(callRef, callBase);
+      await createPeer(callId, otherUid);
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      await update(callRef, {
+        status: "ringing",
+        offer: { type: offer.type, sdp: offer.sdp }
       });
       await flushLocalCandidates(callId);
       await set(ref(db, "callInbox/" + otherUid + "/" + callId), {
