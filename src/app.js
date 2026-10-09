@@ -161,8 +161,9 @@ function showPage(page) {
 }
 function timeLabel(t) { try { return new Date(t).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}); } catch (_) { return ""; } }
 function renderChatsPage() {
-  $("#content").innerHTML = '<div class="chat-layout"><aside class="chat-list-panel"><div class="panel-heading"><div><h3>Твои диалоги</h3><p>Личные сообщения</p></div><button class="icon-button accent-icon" id="newChatBtn" title="Найти друзей">＋</button></div><div class="chat-search"><span>⌕</span><input id="chatFilter" placeholder="Поиск диалога…"></div><div id="chatList" class="chat-list"></div></aside><div id="chatStage" class="chat-stage"><div class="empty-state"><div class="empty-orbit">✦</div><h3>Твоя связь начинается здесь</h3><p>Выбери диалог слева или найди друзей, чтобы начать общаться.</p><button class="primary-button" id="findPeopleBtn">Найти людей <span>→</span></button></div></div></div>';
+  $("#content").innerHTML = '<div class="chat-layout"><aside class="chat-list-panel"><div class="panel-heading"><div><h3>Твои диалоги</h3><p>Личные чаты и группы</p></div><div class="chat-panel-actions"><button class="icon-button accent-icon" id="newGroupBtn" title="Создать группу">▦</button><button class="icon-button accent-icon" id="newChatBtn" title="Найти друзей">＋</button></div></div><div class="chat-search"><span>⌕</span><input id="chatFilter" placeholder="Поиск диалога…"></div><div id="chatList" class="chat-list"></div></aside><div id="chatStage" class="chat-stage"><div class="empty-state"><div class="empty-orbit">✦</div><h3>Твоя связь начинается здесь</h3><p>Выбери диалог слева или найди друзей, чтобы начать общаться.</p><button class="primary-button" id="findPeopleBtn">Найти людей <span>→</span></button></div></div></div>';
   $("#newChatBtn").addEventListener("click", () => showPage("friends"));
+  $("#newGroupBtn").addEventListener("click", openCreateGroup);
   $("#findPeopleBtn").addEventListener("click", () => showPage("friends"));
   $("#chatFilter").addEventListener("input", renderChatListOnly);
   renderChatListOnly();
@@ -178,10 +179,14 @@ function renderChatListOnly() {
 async function openChat(chatId, info) {
   activeChatId = chatId; activeChatUser = info || {}; renderChatListOnly();
   const stage = $("#chatStage"); if (!stage) return;
-  stage.innerHTML = '<div class="conversation-head">'+avatarMarkup(activeChatUser)+'<div><strong>'+esc(activeChatUser.displayName||activeChatUser.username||"Диалог")+'</strong><small>@'+esc(activeChatUser.username||"user")+'</small></div><button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Позвонить</span></button><span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…"><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
-  $("#giftOpenBtn").addEventListener("click", openGiftPicker);
+  const isGroup = activeChatUser.isGroup === true;
+  const chatTitle = activeChatUser.groupName || activeChatUser.displayName || activeChatUser.username || "Диалог";
+  const chatSubtitle = isGroup ? ("Группа · " + Number(activeChatUser.memberCount || (activeChatUser.memberUids || []).length || 0) + " участников") : ("@" + (activeChatUser.username || "user"));
+  stage.innerHTML = '<div class="conversation-head">'+avatarMarkup(activeChatUser)+'<div><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div>'+(isGroup?"":'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Позвонить</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…"><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  const giftButton = $("#giftOpenBtn"); if (giftButton) giftButton.addEventListener("click", openGiftPicker);
   $("#mediaInput").addEventListener("change", async e => { const file = e.target.files && e.target.files[0]; e.target.value = ""; if (file) await sendMedia(file); });
-  $("#audioCallBtn").addEventListener("click", () => {
+  const callButton = $("#audioCallBtn");
+  if (callButton) callButton.addEventListener("click", () => {
     if (!callSystem) return toast("Система звонков ещё запускается.", true);
     callSystem.startAudioCall({...activeChatUser, chatId});
   });
@@ -204,15 +209,54 @@ async function openChat(chatId, info) {
       updates["chats/"+id+"/updatedAt"] = now;
       updates["userChats/"+currentUser.uid+"/"+id+"/lastMessage"] = text.slice(0,120);
       updates["userChats/"+currentUser.uid+"/"+id+"/lastMessageAt"] = now;
-      if (chat.withUid) {
-        updates["userChats/"+chat.withUid+"/"+id+"/lastMessage"] = text.slice(0,120);
-        updates["userChats/"+chat.withUid+"/"+id+"/lastMessageAt"] = now;
+      const recipients = chat.isGroup && Array.isArray(chat.memberUids) ? chat.memberUids : (chat.withUid ? [chat.withUid] : []);
+      for (const memberUid of recipients) {
+        if (memberUid === currentUser.uid) continue;
+        updates["userChats/"+memberUid+"/"+id+"/lastMessage"] = text.slice(0,120);
+        updates["userChats/"+memberUid+"/"+id+"/lastMessageAt"] = now;
       }
       await update(ref(db), updates); input.value = ""; input.focus();
     } catch(e) { toast(errorText(e), true); }
     finally { if ($(".send-button")) $(".send-button").disabled = false; }
   });
 }
+async function openCreateGroup() {
+  try {
+    const snap = await get(ref(db, "friends/" + currentUser.uid));
+    const friends = Object.values(snap.val() || {}).filter(f => f && f.uid && f.uid !== currentUser.uid);
+    if (!friends.length) return toast("Сначала добавь хотя бы одного друга, чтобы создать группу.", true);
+    let layer = $("#groupCreateLayer"); if (layer) layer.remove();
+    layer = document.createElement("div"); layer.id = "groupCreateLayer"; layer.className = "gift-picker-layer";
+    layer.innerHTML = '<section class="gift-picker-card group-create-card"><button class="gift-picker-close" id="groupCloseBtn" type="button">×</button><span class="eyebrow">NOVA GROUPS</span><h3>Создать группу</h3><p>Придумай название и выбери друзей, которых пригласишь в чат.</p><form id="groupCreateForm"><label class="group-name-label" for="groupNameInput">Название группы</label><input id="groupNameInput" maxlength="40" required placeholder="Например, Своя команда"><div class="group-members-heading">Участники <span>'+friends.length+' друзей</span></div><div class="group-member-list">'+friends.map(f=>'<label class="group-member-option">'+avatarMarkup(f)+'<span><strong>'+esc(f.displayName||f.username||"Пользователь")+'</strong><small>@'+esc(f.username||"user")+'</small></span><input type="checkbox" name="groupMember" value="'+esc(f.uid)+'"></label>').join("")+'</div><button class="primary-button full-button" type="submit">Создать группу <span>→</span></button><p id="groupCreateError" class="group-create-error"></p></form></section>';
+    document.body.appendChild(layer);
+    $("#groupCloseBtn").addEventListener("click",()=>layer.remove());
+    layer.addEventListener("click",e=>{if(e.target===layer)layer.remove();});
+    $("#groupCreateForm").addEventListener("submit",async e=>{
+      e.preventDefault();
+      const button=layer.querySelector('button[type="submit"]'), error=$("#groupCreateError");
+      const groupName=$("#groupNameInput").value.trim();
+      const selected=[...layer.querySelectorAll('input[name="groupMember"]:checked')].map(x=>x.value);
+      if(groupName.length<2){error.textContent="Название должно содержать минимум 2 символа.";return;}
+      if(!selected.length){error.textContent="Выбери хотя бы одного друга.";return;}
+      button.disabled=true; error.textContent="Создаём группу…";
+      try {
+        const members={[currentUser.uid]:true}; selected.forEach(uid=>members[uid]=true);
+        const memberUids=Object.keys(members), now=Date.now(), chatRef=push(ref(db,"chats")), chatId=chatRef.key;
+        await set(chatRef,{isGroup:true,groupName,members,memberCount:memberUids.length,createdBy:currentUser.uid,createdAt:now,updatedAt:now,lastMessage:"Группа создана"});
+        const updates={};
+        for(const memberUid of memberUids){
+          let profile=memberUid===currentUser.uid?currentProfile:friends.find(f=>f.uid===memberUid);
+          if(!profile){const p=await get(ref(db,"users/"+memberUid));profile=p.val()||{};}
+          updates["userChats/"+memberUid+"/"+chatId]={isGroup:true,groupName,displayName:groupName,username:"group",memberUids,memberCount:memberUids.length,lastMessage:"Группа создана",lastMessageAt:now,updatedAt:now,createdBy:currentUser.uid};
+        }
+        await update(ref(db),updates);
+        layer.remove(); toast("Группа «"+groupName+"» создана!"); showPage("chats");
+        setTimeout(()=>openChat(chatId,{isGroup:true,groupName,displayName:groupName,username:"group",memberUids,memberCount:memberUids.length}),250);
+      } catch(err) { error.textContent=errorText(err); button.disabled=false; }
+    });
+  } catch(e) { toast(errorText(e),true); }
+}
+
 function renderFriendsPage() {
   $("#content").innerHTML = '<div class="page-wrap"><div class="page-intro"><div><span class="eyebrow">ТВОЁ СООБЩЕСТВО</span><h3>Найди своих людей</h3><p>Ищи по уникальному нику и отправляй заявку в друзья.</p></div></div><div class="search-people"><span>⌕</span><input id="peopleSearch" placeholder="Введи ник пользователя, например nova_player"><button id="searchPeopleBtn" class="primary-button">Найти</button></div><div id="peopleResults" class="people-grid"><div class="helper-card"><span>✦</span><p>Введи ник, чтобы найти пользователей NOVA.</p></div></div><div class="section-title"><h3>Твои друзья</h3><span>'+Object.keys(cachedFriends).length+'</span></div><div id="friendsGrid" class="people-grid"></div></div>';
   $("#searchPeopleBtn").addEventListener("click", searchPeople);
@@ -365,7 +409,8 @@ async function sendMedia(file) {
     updates["chats/"+chatId+"/updatedAt"]=now;
     updates["userChats/"+currentUser.uid+"/"+chatId+"/lastMessage"]=label;
     updates["userChats/"+currentUser.uid+"/"+chatId+"/lastMessageAt"]=now;
-    if(chat.withUid){updates["userChats/"+chat.withUid+"/"+chatId+"/lastMessage"]=label;updates["userChats/"+chat.withUid+"/"+chatId+"/lastMessageAt"]=now;}
+    const recipients=chat.isGroup&&Array.isArray(chat.memberUids)?chat.memberUids:(chat.withUid?[chat.withUid]:[]);
+    for(const memberUid of recipients){if(memberUid===currentUser.uid)continue;updates["userChats/"+memberUid+"/"+chatId+"/lastMessage"]=label;updates["userChats/"+memberUid+"/"+chatId+"/lastMessageAt"]=now;}
     await update(ref(db),updates);
     toast(isVideo?"Видео отправлено!":"Фото отправлено!");
   } catch(error) { toast(errorText(error),true); }
