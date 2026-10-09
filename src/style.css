@@ -86,3 +86,28 @@ body{display:flex}.sidebar{width:260px;min-width:230px;flex-shrink:0;padding:26p
 .media-caption{padding:6px 4px 2px;font-size:10px;overflow-wrap:anywhere;color:#d4d6eb}
 .media-message small{display:block;padding:2px 4px 3px}
 @media(max-width:620px){.message-composer{gap:7px;padding:11px}.media-attach-button{width:39px}.message-bubble.media-message{max-width:88%}.chat-media-image,.chat-media-video{max-height:300px}}
+
+
+/* NOVA AI */
+.ai-nav{position:relative}.ai-nav>span{color:#a9a5ff}.ai-nav em{margin-left:auto;padding:3px 6px;border:1px solid #5a568d;border-radius:6px;color:#b9b4ff;font-size:9px;font-style:normal;letter-spacing:.5px}
+.ai-page{height:100%;min-height:500px;display:flex;flex-direction:column;max-width:1080px;margin:0 auto;padding:28px;width:100%}
+.ai-heading{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px}
+.ai-title-wrap{display:flex;align-items:center;gap:13px}.ai-mark{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;font-size:25px;color:#171729;background:linear-gradient(135deg,#72efff,#8b83ff 60%,#d9a1ff);box-shadow:0 0 35px #8881ff24}
+.ai-heading h3{margin:0 0 5px;font-size:20px}.ai-heading p{margin:0;color:var(--muted);font-size:12px}
+.ai-clear{border:1px solid #373a53;border-radius:10px;background:#202233;color:#bfc3db;padding:10px 12px;font-size:11px;white-space:nowrap}.ai-clear:hover{background:#2a2d44}
+.ai-chat-panel{flex:1;min-height:250px;overflow:auto;border:1px solid #2e3148;border-radius:18px;background:radial-gradient(ellipse at 50% 0%,#23243b 0%,#181a29 58%);padding:24px;display:flex;flex-direction:column;gap:16px}
+.ai-welcome{margin:auto;max-width:520px;text-align:center;padding:25px 10px}.ai-welcome-mark{width:76px;height:76px;border-radius:25px;margin:0 auto 20px;display:grid;place-items:center;font-size:39px;color:#bcb9ff;border:1px solid #4b4974;background:linear-gradient(145deg,#292b49,#202134);box-shadow:0 0 70px #817cff18}
+.ai-welcome h4{font-size:23px;margin:0 0 10px}.ai-welcome p{color:var(--muted);font-size:13px;line-height:1.7;margin:0}
+.ai-suggestions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:23px}
+.ai-suggestion{border:1px solid #373a53;border-radius:12px;background:#202233;color:#d9dcf0;padding:13px;text-align:left;font-size:12px;line-height:1.5;transition:.15s}.ai-suggestion:hover{border-color:#7778e8;background:#292b43}
+.ai-message{display:flex;flex-direction:column;gap:6px;max-width:min(82%,720px);align-self:flex-start}
+.ai-message.user{align-self:flex-end}.ai-message-label{font-size:10px;color:#a5a9c4;padding:0 4px}.ai-message.user .ai-message-label{text-align:right}
+.ai-message-body{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65;font-size:13px;padding:13px 16px;border:1px solid #363950;border-radius:15px 15px 15px 4px;background:#242638;color:#f1f2ff}
+.ai-message.user .ai-message-body{background:linear-gradient(135deg,#555dc0,#7469c9);border-color:#7776db;border-radius:15px 15px 4px 15px}
+.ai-message.pending .ai-message-body{color:#a6abca;font-style:italic}
+.ai-status{min-height:18px;margin:8px 4px 0;color:#ffb2b9;font-size:11px}
+.ai-composer{display:flex;align-items:flex-end;gap:10px;margin-top:12px;padding:12px;border:1px solid #34374e;border-radius:16px;background:#1a1c2b}
+.ai-composer textarea{flex:1;min-width:0;max-height:140px;min-height:44px;resize:vertical;border:0;outline:0;background:transparent;color:white;padding:12px 8px;font-size:13px;line-height:1.5}
+.ai-composer textarea::placeholder{color:#777e9b}.ai-send{width:46px;height:44px;flex-shrink:0;border:0;border-radius:12px;background:linear-gradient(135deg,#7c7cf4,#7771dc);color:white;font-size:20px}.ai-send:hover:not(:disabled){filter:brightness(1.12)}
+.ai-footnote{margin:8px 4px 0;color:#737a98;font-size:10px;line-height:1.5}
+@media(max-width:620px){.ai-page{padding:16px}.ai-heading{align-items:flex-start}.ai-heading h3{font-size:17px}.ai-heading p{line-height:1.5}.ai-chat-panel{padding:14px}.ai-suggestions{grid-template-columns:1fr}.ai-message{max-width:95%}.ai-clear{padding:8px;font-size:10px}}
