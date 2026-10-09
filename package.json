@@ -14,24 +14,14 @@
   },
   "devDependencies": {
     "electron": "^38.2.0",
-    "electron-builder": "^26.2.0",
-    "sharp": "^0.34.4",
-    "png-to-ico": "^2.0.1"
+    "electron-builder": "^26.2.0"
   },
   "build": {
     "appId": "com.nova.messenger",
     "productName": "NOVA Messenger",
-    "directories": {
-      "buildResources": "build"
-    },
+    "target": "nsis",
     "win": {
-      "icon": "build/icon.ico",
       "target": "nsis"
-    },
-    "files": [
-      "main.js",
-      "src/**/*",
-      "package.json"
-    ]
+    }
   }
 }
