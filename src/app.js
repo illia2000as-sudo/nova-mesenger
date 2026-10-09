@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, deleteUser } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 import { getDatabase, ref, set, get, onValue, push, update, remove, runTransaction } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-storage.js";
 import { createCallSystem } from "./calls.js";
 
 const firebaseConfig = {
@@ -15,6 +16,7 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getDatabase(firebaseApp);
+const storage = getStorage(firebaseApp);
 const $ = (s) => document.querySelector(s);
 let currentUser = null, currentProfile = null, currentPage = "chats", activeChatId = null, activeChatUser = null;
 let stopUserChats = null, stopMessages = null, stopRequests = null, stopCoins = null;
@@ -25,6 +27,38 @@ function esc(v) {
   return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 function initial(v) { return esc((String(v || "?").trim().split(/\s+/)[0][0] || "?").toUpperCase()); }
+function avatarMarkup(profile, extraClass = "") {
+  const cls = "avatar " + extraClass;
+  if (profile && profile.avatarUrl) {
+    if (profile.avatarType === "video") return '<div class="'+cls+' avatar-media"><video src="'+esc(profile.avatarUrl)+'" autoplay muted loop playsinline></video></div>';
+    return '<div class="'+cls+' avatar-media"><img src="'+esc(profile.avatarUrl)+'" alt="Аватар"></div>';
+  }
+  return '<div class="'+cls+'">'+initial(profile && (profile.displayName || profile.username))+'</div>';
+}
+function mediaDuration(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file), media = document.createElement("video");
+    media.preload = "metadata";
+    media.onloadedmetadata = () => { const duration = media.duration; URL.revokeObjectURL(url); resolve(duration); };
+    media.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Не удалось прочитать видео. Выбери MP4 или WebM.")); };
+    media.src = url;
+  });
+}
+function safeFileName(name) {
+  return String(name || "file").normalize("NFKD").replace(/[^a-zA-Z0-9._-]/g, "_").slice(-80) || "file";
+}
+async function uploadMedia(file, path) {
+  const target = storageRef(storage, path + "/" + Date.now() + "_" + safeFileName(file.name));
+  const result = await uploadBytes(target, file, {contentType:file.type || "application/octet-stream"});
+  return {url:await getDownloadURL(result.ref), path:result.ref.fullPath};
+}
+function renderMediaMessage(message) {
+  const mine = message.senderUid === currentUser.uid;
+  const media = message.mediaType === "video"
+    ? '<video class="chat-media-video" src="'+esc(message.url)+'" controls preload="metadata"></video>'
+    : '<a href="'+esc(message.url)+'" target="_blank" rel="noreferrer"><img class="chat-media-image" src="'+esc(message.url)+'" alt="'+esc(message.fileName || "Фото")+'"></a>';
+  return '<div class="message-row '+(mine?"mine":"")+'"><div class="message-bubble media-message">'+media+(message.fileName?'<div class="media-caption">'+esc(message.fileName)+'</div>':'')+'<small>'+timeLabel(message.createdAt||Date.now())+(mine?" · Вы":"")+'</small></div></div>';
+}
 function uname(v) { return String(v || "").trim().replace(/^@/, "").toLowerCase(); }
 function errorText(e) {
   const map = {"auth/email-already-in-use":"Этот email уже зарегистрирован.","auth/invalid-email":"Проверь адрес электронной почты.","auth/invalid-credential":"Неверная почта или пароль.","auth/weak-password":"Пароль должен содержать минимум 6 символов.","auth/network-request-failed":"Нет соединения с интернетом.","auth/too-many-requests":"Слишком много попыток. Попробуй позже.","PERMISSION_DENIED":"Firebase отклонил действие. Проверь правила базы данных."};
@@ -94,7 +128,8 @@ function shell() {
 function updateSidebar() {
   $("#sideName").textContent = currentProfile.displayName || currentProfile.username || "Пользователь";
   $("#sideHandle").textContent = "@" + (currentProfile.username || "user");
-  $("#sideAvatar").textContent = initial(currentProfile.displayName || currentProfile.username);
+  const sideAvatar = $("#sideAvatar");
+  if (sideAvatar) { const markup = avatarMarkup(currentProfile); sideAvatar.outerHTML = markup.replace('class="avatar "', 'id="sideAvatar" class="avatar "').replace('class="avatar avatar-media"', 'id="sideAvatar" class="avatar avatar-media"'); }
 }
 function listenData() {
   stopListeners();
@@ -137,14 +172,15 @@ function renderChatListOnly() {
   const filter = ($("#chatFilter") ? $("#chatFilter").value : "").toLowerCase();
   const entries = Object.entries(cachedChats).sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0)).filter(x => (x[1].username || x[1].displayName || "").toLowerCase().includes(filter));
   if (!entries.length) { list.innerHTML = '<div class="list-empty"><div>✧</div><strong>Пока тихо</strong><p>Найди друга и отправь первое сообщение.</p></div>'; return; }
-  list.innerHTML = entries.map(([id,c]) => '<button class="chat-item '+(activeChatId===id?"selected":"")+'" data-chat-id="'+esc(id)+'"><div class="avatar">'+initial(c.displayName||c.username)+'</div><div class="chat-item-copy"><strong>'+esc(c.displayName||c.username||"Пользователь")+'</strong><small>'+esc(c.lastMessage||"Начните общение")+'</small></div><small class="chat-time">'+(c.lastMessageAt?timeLabel(c.lastMessageAt):"")+'</small></button>').join("");
+  list.innerHTML = entries.map(([id,c]) => '<button class="chat-item '+(activeChatId===id?"selected":"")+'" data-chat-id="'+esc(id)+'">'+avatarMarkup(c)+'<div class="chat-item-copy"><strong>'+esc(c.displayName||c.username||"Пользователь")+'</strong><small>'+esc(c.lastMessage||"Начните общение")+'</small></div><small class="chat-time">'+(c.lastMessageAt?timeLabel(c.lastMessageAt):"")+'</small></button>').join("");
   list.querySelectorAll("[data-chat-id]").forEach(b => b.addEventListener("click", () => openChat(b.dataset.chatId, cachedChats[b.dataset.chatId])));
 }
 async function openChat(chatId, info) {
   activeChatId = chatId; activeChatUser = info || {}; renderChatListOnly();
   const stage = $("#chatStage"); if (!stage) return;
-  stage.innerHTML = '<div class="conversation-head"><div class="avatar">'+initial(activeChatUser.displayName||activeChatUser.username)+'</div><div><strong>'+esc(activeChatUser.displayName||activeChatUser.username||"Диалог")+'</strong><small>@'+esc(activeChatUser.username||"user")+'</small></div><button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Позвонить</span></button><span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…" required><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  stage.innerHTML = '<div class="conversation-head">'+avatarMarkup(activeChatUser)+'<div><strong>'+esc(activeChatUser.displayName||activeChatUser.username||"Диалог")+'</strong><small>@'+esc(activeChatUser.username||"user")+'</small></div><button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Позвонить</span></button><span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…"><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
   $("#giftOpenBtn").addEventListener("click", openGiftPicker);
+  $("#mediaInput").addEventListener("change", async e => { const file = e.target.files && e.target.files[0]; e.target.value = ""; if (file) await sendMedia(file); });
   $("#audioCallBtn").addEventListener("click", () => {
     if (!callSystem) return toast("Система звонков ещё запускается.", true);
     callSystem.startAudioCall({...activeChatUser, chatId});
@@ -153,7 +189,7 @@ async function openChat(chatId, info) {
   stopMessages = onValue(ref(db, "messages/" + chatId), snap => {
     const messages = Object.entries(snap.val() || {}).sort((a,b)=>(a[1].createdAt||0)-(b[1].createdAt||0));
     const box = $("#messageList"); if (!box) return;
-    box.innerHTML = messages.length ? messages.map(x => x[1].type === "gift" ? renderGiftMessage(x[1]) : '<div class="message-row '+(x[1].senderUid===currentUser.uid?"mine":"")+'"><div class="message-bubble"><div>'+esc(x[1].text).replace(/\n/g,"<br>")+'</div><small>'+timeLabel(x[1].createdAt||Date.now())+(x[1].senderUid===currentUser.uid?" · Вы":"")+'</small></div></div>').join("") : '<div class="empty-messages"><span>✦</span><p>Это начало вашей истории. Напиши первым!</p></div>';
+    box.innerHTML = messages.length ? messages.map(x => x[1].type === "gift" ? renderGiftMessage(x[1]) : x[1].type === "media" ? renderMediaMessage(x[1]) : '<div class="message-row '+(x[1].senderUid===currentUser.uid?"mine":"")+'"><div class="message-bubble"><div>'+esc(x[1].text || "").replace(/\n/g,"<br>")+'</div><small>'+timeLabel(x[1].createdAt||Date.now())+(x[1].senderUid===currentUser.uid?" · Вы":"")+'</small></div></div>').join("") : '<div class="empty-messages"><span>✦</span><p>Это начало вашей истории. Напиши первым!</p></div>';
     box.scrollTop = box.scrollHeight;
   }, e => toast(errorText(e), true));
   $("#messageForm").addEventListener("submit", async e => {
@@ -261,8 +297,61 @@ async function sendGift(gift){if(!activeChatId||!activeChatUser?.withUid)return 
 function renderPremiumPage() {
   $("#content").innerHTML = '<div class="page-wrap premium-page"><section class="premium-hero"><div class="premium-orb">✦</div><div class="premium-kicker">NOVA · БОЛЬШЕ ВОЗМОЖНОСТЕЙ</div><h3>Общайся <span>без границ</span></h3><p>Premium задуман для тех, кто хочет поддержать развитие NOVA и получить больше возможностей. Сейчас это предварительный экран: реальные платежи ещё не подключены.</p><div class="premium-pills"><span>✦ Ранний доступ</span><span>◈ Особые темы</span><span>♡ Поддержка проекта</span></div></section><div class="premium-section-heading"><div><span class="eyebrow">ТВОЙ ТАРИФ</span><h3>Выбери свой NOVA</h3></div><span class="plan-status">Сейчас: '+(currentProfile?.premium ? "NOVA Premium активен" : "Бесплатный")+'</span></div><div class="premium-plans"><article class="plan-card"><div class="plan-top"><div class="plan-icon free-icon">✦</div><span class="plan-label">ДЛЯ ВСЕХ</span></div><h4>NOVA Free</h4><div class="plan-price">$0 <small>/ навсегда</small></div><p class="plan-description">Всё необходимое для общения с друзьями.</p><ul><li>✓ Личные сообщения</li><li>✓ Друзья и заявки</li><li>✓ Настройка профиля</li><li>✓ Синхронизация в реальном времени</li></ul><div class="current-plan">ТВОЙ ТЕКУЩИЙ ТАРИФ</div></article><article class="plan-card premium-plan"><div class="plan-top"><div class="plan-icon premium-icon">✧</div><span class="plan-label">'+(currentProfile?.premium ? "АКТИВЕН" : "В РАЗРАБОТКЕ")+'</span></div><h4>NOVA Premium</h4><div class="plan-price">$0.99 <small>/ месяц · планируемая цена</small></div><p class="plan-description">Больше персонализации и способ поддержать развитие приложения.</p><ul><li>✦ Эксклюзивные темы оформления</li><li>✦ Дополнительные настройки профиля</li><li>✦ Значок Premium</li><li>✦ Ранний доступ к новым функциям</li></ul><button class="premium-disabled-button" '+(currentProfile?.premium ? "" : "disabled")+'>'+(currentProfile?.premium ? "✦ Premium разблокирован" : "Скоро появится")+'</button><p class="payment-note">'+(currentProfile?.premium ? "Твой секретный бонус активен. Оплата не нужна." : "Оплата отключена. Сейчас деньги не списываются.")+'</p></article></div><section class="premium-roadmap"><div class="roadmap-icon">↗</div><div><strong>Сначала — стабильный мессенджер</strong><p>Перед запуском подписки мы проверим чаты, защиту аккаунтов и работу приложения. Цена и функции могут измениться до официального запуска.</p></div></section></div>';
 }
+async function saveAvatar(file) {
+  const isImage = ["image/jpeg","image/png","image/webp","image/gif"].includes(file.type);
+  const isVideo = ["video/mp4","video/webm"].includes(file.type);
+  if (!isImage && !isVideo) return toast("Поддерживаются JPG, PNG, WEBP, GIF, MP4 и WebM.", true);
+  if (file.size > (isVideo ? 20 : 8) * 1024 * 1024) return toast(isVideo ? "Видеоаватар должен быть не больше 20 МБ." : "Фото должно быть не больше 8 МБ.", true);
+  try {
+    if (isVideo) { const duration = await mediaDuration(file); if (!Number.isFinite(duration) || duration > 5.05) return toast("Видеоаватар должен длиться не больше 5 секунд.", true); }
+    toast("Загружаем аватар…");
+    const uploaded = await uploadMedia(file, "avatars/" + currentUser.uid);
+    const oldPath = currentProfile.avatarPath;
+    const fields = {avatarUrl:uploaded.url,avatarPath:uploaded.path,avatarType:isVideo?"video":"image",avatarUpdatedAt:Date.now()};
+    await update(ref(db,"users/"+currentUser.uid),fields);
+    Object.assign(currentProfile,fields); updateSidebar(); renderProfilePage();
+    if (oldPath && oldPath !== uploaded.path) deleteObject(storageRef(storage,oldPath)).catch(()=>{});
+    toast("Аватар обновлён!");
+  } catch(error) { toast(errorText(error),true); }
+}
+async function removeAvatar() {
+  if (!currentProfile.avatarUrl) return;
+  try {
+    const oldPath=currentProfile.avatarPath;
+    await update(ref(db,"users/"+currentUser.uid),{avatarUrl:null,avatarPath:null,avatarType:null,avatarUpdatedAt:Date.now()});
+    currentProfile.avatarUrl=null; currentProfile.avatarPath=null; currentProfile.avatarType=null;
+    updateSidebar(); renderProfilePage();
+    if(oldPath) deleteObject(storageRef(storage,oldPath)).catch(()=>{});
+    toast("Аватар удалён.");
+  } catch(error) { toast(errorText(error),true); }
+}
+async function sendMedia(file) {
+  if (!activeChatId) return toast("Сначала открой чат.",true);
+  const isImage=["image/jpeg","image/png","image/webp","image/gif"].includes(file.type);
+  const isVideo=["video/mp4","video/webm"].includes(file.type);
+  if(!isImage&&!isVideo) return toast("Поддерживаются JPG, PNG, WEBP, GIF, MP4 и WebM.",true);
+  if(file.size>(isVideo?50:12)*1024*1024) return toast(isVideo?"Видео не должно быть больше 50 МБ.":"Фото не должно быть больше 12 МБ.",true);
+  try {
+    if(isVideo) { const duration=await mediaDuration(file); if(!Number.isFinite(duration)||duration>60) return toast("Видео в чате должно длиться не больше 60 секунд.",true); }
+    toast("Загружаем файл…");
+    const chatId=activeChatId, chat=cachedChats[chatId]||activeChatUser||{};
+    const uploaded=await uploadMedia(file,"chat-media/"+chatId+"/"+currentUser.uid);
+    const now=Date.now(), msg=push(ref(db,"messages/"+chatId));
+    await set(msg,{type:"media",mediaType:isVideo?"video":"image",url:uploaded.url,storagePath:uploaded.path,fileName:file.name.slice(0,120),senderUid:currentUser.uid,createdAt:now});
+    const label=isVideo?"🎬 Видео":"🖼️ Фото", updates={};
+    updates["chats/"+chatId+"/lastMessage"]=label;
+    updates["chats/"+chatId+"/updatedAt"]=now;
+    updates["userChats/"+currentUser.uid+"/"+chatId+"/lastMessage"]=label;
+    updates["userChats/"+currentUser.uid+"/"+chatId+"/lastMessageAt"]=now;
+    if(chat.withUid){updates["userChats/"+chat.withUid+"/"+chatId+"/lastMessage"]=label;updates["userChats/"+chat.withUid+"/"+chatId+"/lastMessageAt"]=now;}
+    await update(ref(db),updates);
+    toast(isVideo?"Видео отправлено!":"Фото отправлено!");
+  } catch(error) { toast(errorText(error),true); }
+}
 function renderProfilePage() {
-  $("#content").innerHTML = '<div class="page-wrap profile-page"><div class="page-intro"><div><span class="eyebrow">ТВОЙ АККАУНТ</span><h3>Мой профиль</h3><p>Управляй именем и информацией, которую видят другие.</p></div></div><form id="profileForm" class="profile-form"><div class="profile-hero"><div class="avatar large-avatar">'+initial(currentProfile.displayName||currentProfile.username)+'</div><div><h3>'+esc(currentProfile.displayName||currentProfile.username)+'</h3><p>@'+esc(currentProfile.username)+'</p><span class="verified-label">✦ NOVA MEMBER</span></div></div><label for="displayNameInput">Отображаемое имя</label><input id="displayNameInput" maxlength="40" required value="'+esc(currentProfile.displayName||currentProfile.username)+'"><label for="bioInput">О себе</label><textarea id="bioInput" maxlength="160" rows="3" placeholder="Расскажи немного о себе…">'+esc(currentProfile.bio||"")+'</textarea><label>Электронная почта</label><input value="'+esc(currentUser.email||"")+'" disabled><label>Имя пользователя</label><input value="@'+esc(currentProfile.username)+'" disabled><button class="primary-button" type="submit">Сохранить изменения <span>→</span></button><p id="profileMessage"></p></form></div>';
+  $("#content").innerHTML = '<div class="page-wrap profile-page"><div class="page-intro"><div><span class="eyebrow">ТВОЙ АККАУНТ</span><h3>Мой профиль</h3><p>Управляй именем и информацией, которую видят другие.</p></div></div><form id="profileForm" class="profile-form"><div class="profile-hero">'+avatarMarkup(currentProfile,"large-avatar")+'<div><h3>'+esc(currentProfile.displayName||currentProfile.username)+'</h3><p>@'+esc(currentProfile.username)+'</p><span class="verified-label">✦ NOVA MEMBER</span></div></div><div class="avatar-upload-panel"><strong>Аватар профиля</strong><p>Фото: JPG, PNG, WEBP или GIF. Видео: MP4/WebM до 5 секунд.</p><div class="avatar-upload-actions"><label class="small-button avatar-file-button">Выбрать аватар<input id="avatarFileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><button class="small-button" id="removeAvatarBtn" type="button" '+(currentProfile.avatarUrl?"":"disabled")+ '>Убрать аватар</button></div></div><label for="displayNameInput">Отображаемое имя</label><input id="displayNameInput" maxlength="40" required value="'+esc(currentProfile.displayName||currentProfile.username)+'"><label for="bioInput">О себе</label><textarea id="bioInput" maxlength="160" rows="3" placeholder="Расскажи немного о себе…">'+esc(currentProfile.bio||"")+'</textarea><label>Электронная почта</label><input value="'+esc(currentUser.email||"")+'" disabled><label>Имя пользователя</label><input value="@'+esc(currentProfile.username)+'" disabled><button class="primary-button" type="submit">Сохранить изменения <span>→</span></button><p id="profileMessage"></p></form></div>';
+  $("#avatarFileInput").addEventListener("change", async e => { const file = e.target.files && e.target.files[0]; e.target.value = ""; if (file) await saveAvatar(file); });
+  $("#removeAvatarBtn").addEventListener("click", removeAvatar);
   $("#profileForm").addEventListener("submit",async e=>{
     e.preventDefault(); const displayName=$("#displayNameInput").value.trim(), bio=$("#bioInput").value.trim();
     if(!displayName)return toast("Имя не может быть пустым.",true);
