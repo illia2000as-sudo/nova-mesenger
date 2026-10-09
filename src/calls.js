@@ -15,6 +15,9 @@ export function createCallSystem(api) {
   let finishing = false;
   let incomingCall = null;
   let audioElement = null;
+  let remoteVideoElement = null;
+  let localVideoElement = null;
+  let activeCallType = "audio";
   let remoteCandidateData = {};
 
   const uid = () => getUser()?.uid;
@@ -26,9 +29,12 @@ export function createCallSystem(api) {
     layer.id = "novaCallLayer";
     layer.className = "call-layer";
     layer.hidden = true;
-    layer.innerHTML = '<section class="call-card" role="dialog" aria-modal="true" aria-labelledby="callTitle"><div class="call-orb">☎</div><div class="call-eyebrow">NOVA · AUDIO</div><h2 id="callTitle">Аудиозвонок</h2><p id="callPerson" class="call-person">Пользователь NOVA</p><p id="callStatus" class="call-status">Подключаемся…</p><audio id="callRemoteAudio" autoplay></audio><div class="call-controls"><button id="callMuteBtn" class="call-control mute" type="button" title="Выключить микрофон">🎙</button><button id="callHangupBtn" class="call-control hangup" type="button" title="Завершить звонок">☎</button></div><div id="callIncomingActions" class="call-incoming-actions" hidden><button id="callRejectBtn" class="call-reject" type="button">Отклонить</button><button id="callAcceptBtn" class="call-accept" type="button">Принять звонок</button></div><p class="call-footnote">Только голос · камера не используется</p></section>';
+    layer.innerHTML = '<section class="call-card" role="dialog" aria-modal="true" aria-labelledby="callTitle"><div class="call-orb" id="callOrb">☎</div><div class="call-eyebrow">NOVA · CALL</div><h2 id="callTitle">Аудиозвонок</h2><p id="callPerson" class="call-person">Пользователь NOVA</p><p id="callStatus" class="call-status">Подключаемся…</p><div id="callVideoStage" class="call-video-stage" hidden><video id="callRemoteVideo" class="call-remote-video" autoplay playsinline></video><video id="callLocalVideo" class="call-local-video" autoplay muted playsinline></video></div><audio id="callRemoteAudio" autoplay></audio><div class="call-controls"><button id="callMuteBtn" class="call-control mute" type="button" title="Выключить микрофон">🎙</button><button id="callCameraBtn" class="call-control camera" type="button" title="Выключить камеру" hidden>📹</button><button id="callHangupBtn" class="call-control hangup" type="button" title="Завершить звонок">☎</button></div><div id="callIncomingActions" class="call-incoming-actions" hidden><button id="callRejectBtn" class="call-reject" type="button">Отклонить</button><button id="callAcceptBtn" class="call-accept" type="button">Принять звонок</button></div><p id="callFootnote" class="call-footnote">Только голос · камера не используется</p></section>';
     document.body.appendChild(layer);
     audioElement = layer.querySelector("#callRemoteAudio");
+    remoteVideoElement = layer.querySelector("#callRemoteVideo");
+    localVideoElement = layer.querySelector("#callLocalVideo");
+    layer.querySelector("#callCameraBtn").addEventListener("click", toggleCamera);
     layer.querySelector("#callHangupBtn").addEventListener("click", () => endCall(true));
     layer.querySelector("#callMuteBtn").addEventListener("click", toggleMute);
     layer.querySelector("#callAcceptBtn").addEventListener("click", acceptIncoming);
@@ -44,13 +50,19 @@ export function createCallSystem(api) {
     layer.querySelector("#callIncomingActions").hidden = !incoming;
     layer.querySelector("#callMuteBtn").hidden = incoming;
     layer.querySelector("#callHangupBtn").hidden = incoming;
-    layer.querySelector("#callTitle").textContent = incoming ? "Входящий звонок" : "Аудиозвонок";
+    layer.querySelector("#callTitle").textContent = incoming ? (activeCallType === "video" ? "Входящий видеозвонок" : "Входящий аудиозвонок") : (activeCallType === "video" ? "Видеозвонок" : "Аудиозвонок");
+    layer.querySelector("#callOrb").hidden = activeCallType === "video";
+    layer.querySelector("#callVideoStage").hidden = activeCallType !== "video";
+    layer.querySelector("#callCameraBtn").hidden = incoming || activeCallType !== "video";
+    layer.querySelector("#callFootnote").textContent = activeCallType === "video" ? "Видео и звук · камера работает только во время звонка" : "Только голос · камера не используется";
   }
 
   function hideLayer() {
     const layer = callLayer();
     if (layer) layer.hidden = true;
-    if (audioElement) { audioElement.srcObject = null; }
+    if (audioElement) audioElement.srcObject = null;
+    if (remoteVideoElement) remoteVideoElement.srcObject = null;
+    if (localVideoElement) localVideoElement.srcObject = null;
   }
 
   function setStatus(value) {
@@ -67,6 +79,9 @@ export function createCallSystem(api) {
     if (localStream) localStream.getTracks().forEach(track => track.stop());
     localStream = null;
     if (audioElement) audioElement.srcObject = null;
+    if (remoteVideoElement) remoteVideoElement.srcObject = null;
+    if (localVideoElement) localVideoElement.srcObject = null;
+    activeCallType = "audio";
     activeCallId = null;
     activeCallRef = null;
     callReady = false;
@@ -96,9 +111,11 @@ export function createCallSystem(api) {
     peer = new RTCPeerConnection({
       iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }]
     });
-    localStream.getAudioTracks().forEach(track => peer.addTrack(track, localStream));
+    localStream.getTracks().forEach(track => peer.addTrack(track, localStream));
     peer.ontrack = event => {
-      if (audioElement) audioElement.srcObject = event.streams[0];
+      const stream = event.streams[0];
+      if (activeCallType === "video" && remoteVideoElement) remoteVideoElement.srcObject = stream;
+      else if (audioElement) audioElement.srcObject = stream;
     };
     peer.onconnectionstatechange = () => {
       if (!peer) return;
@@ -138,14 +155,19 @@ export function createCallSystem(api) {
     }
   }
 
-  async function startAudioCall(friend) {
+  async function startCall(friend, type = "audio") {
     if (activeCallId) return toast("Сначала заверши текущий звонок.", true);
     const otherUid = friend?.withUid || friend?.uid;
     if (!otherUid || otherUid === uid()) return toast("Не удалось определить собеседника.", true);
+    activeCallType = type === "video" ? "video" : "audio";
     try {
       ensureLayer();
-      showLayer(friend.displayName || friend.username, "Запрашиваем доступ к микрофону…");
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      showLayer(friend.displayName || friend.username, activeCallType === "video" ? "Запрашиваем доступ к камере и микрофону…" : "Запрашиваем доступ к микрофону…");
+      localStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: activeCallType === "video" ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } : false
+      });
+      if (activeCallType === "video" && localVideoElement) localVideoElement.srcObject = localStream;
       const callRef = push(ref(db, "calls"));
       const callId = callRef.key;
       const me = getUser();
@@ -156,41 +178,46 @@ export function createCallSystem(api) {
         callerName: me.displayName || me.email?.split("@")[0] || "Пользователь NOVA",
         calleeName: friend.displayName || friend.username || "Пользователь NOVA",
         members: { [me.uid]: true, [otherUid]: true },
+        callType: activeCallType,
         status: "preparing",
         createdAt: Date.now()
       };
-      // Create the members record first so Firebase rules permit candidate listeners.
       await set(callRef, callBase);
       await createPeer(callId, otherUid);
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
-      await update(callRef, {
-        status: "ringing",
-        offer: { type: offer.type, sdp: offer.sdp }
-      });
+      await update(callRef, { status: "ringing", offer: { type: offer.type, sdp: offer.sdp } });
       await flushLocalCandidates(callId);
       await set(ref(db, "callInbox/" + otherUid + "/" + callId), {
         callId, callerUid: me.uid,
         callerName: me.displayName || me.email?.split("@")[0] || "Пользователь NOVA",
+        callType: activeCallType,
         chatId: friend.chatId || "",
         createdAt: Date.now()
       });
-      setStatus("Звоним…");
+      setStatus(activeCallType === "video" ? "Видеозвонок · звоним…" : "Звоним…");
       stopCall = onValue(callRef, snap => {
         const data = snap.val();
         if (!data) return;
         if (data.status === "active" && data.answer && peer && !peer.remoteDescription) {
-          peer.setRemoteDescription(new RTCSessionDescription(data.answer)).then(() => { setStatus("Соединяем голос…"); processRemoteCandidates(); }).catch(e => console.warn(e));
+          peer.setRemoteDescription(new RTCSessionDescription(data.answer)).then(() => {
+            setStatus(activeCallType === "video" ? "Соединяем видео…" : "Соединяем голос…");
+            processRemoteCandidates();
+          }).catch(e => console.warn(e));
         }
         if (["declined", "ended", "missed"].includes(data.status) && activeCallId === callId) {
           endCall(false, data.status === "declined" ? "Звонок отклонён." : "Собеседник завершил звонок.");
         }
       });
     } catch (e) {
-      console.error("NOVA audio call error:", e);
-      await endCall(false, e?.name === "NotAllowedError" ? "Нет доступа к микрофону. Разреши его в настройках Windows." : "Не удалось начать звонок: " + (e?.message || "ошибка"));
+      console.error("NOVA call error:", e);
+      const denied = e?.name === "NotAllowedError" || e?.name === "PermissionDeniedError";
+      await endCall(false, denied ? "Нет доступа к камере или микрофону. Разреши их в настройках Windows." : "Не удалось начать звонок: " + (e?.message || "ошибка"));
     }
   }
+
+  async function startAudioCall(friend) { return startCall(friend, "audio"); }
+  async function startVideoCall(friend) { return startCall(friend, "video"); }
 
   async function acceptIncoming() {
     const incoming = incomingCall;
@@ -199,8 +226,13 @@ export function createCallSystem(api) {
     if (stopIncomingCall) stopIncomingCall();
     stopIncomingCall = null;
     try {
-      showLayer(incoming.callerName, "Подключаем микрофон…");
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      activeCallType = incoming.callType === "video" ? "video" : "audio";
+      showLayer(incoming.callerName, activeCallType === "video" ? "Подключаем камеру и микрофон…" : "Подключаем микрофон…");
+      localStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: activeCallType === "video" ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } : false
+      });
+      if (activeCallType === "video" && localVideoElement) localVideoElement.srcObject = localStream;
       const snap = await get(ref(db, "calls/" + incoming.callId));
       if (!snap.exists()) throw new Error("Звонок уже завершён.");
       const data = snap.val();
@@ -254,6 +286,17 @@ export function createCallSystem(api) {
     setStatus(enabled ? "Микрофон выключен" : "Разговор идёт");
   }
 
+  function toggleCamera() {
+    if (!localStream) return;
+    const tracks = localStream.getVideoTracks();
+    if (!tracks.length) return;
+    const enabled = tracks.some(track => track.enabled);
+    tracks.forEach(track => { track.enabled = !enabled; });
+    const button = callLayer()?.querySelector("#callCameraBtn");
+    if (button) { button.classList.toggle("muted", enabled); button.textContent = enabled ? "🚫" : "📹"; button.title = enabled ? "Включить камеру" : "Выключить камеру"; }
+    setStatus(enabled ? "Камера выключена" : "Разговор идёт");
+  }
+
   function listenForCalls() {
     if (stopInbox) stopInbox();
     stopInbox = onValue(ref(db, "callInbox/" + uid()), async snap => {
@@ -268,7 +311,8 @@ export function createCallSystem(api) {
         }
         incomingCall = candidate;
         ensureLayer();
-        showLayer(candidate.callerName, "Входящий аудиозвонок…", true);
+        activeCallType = candidate.callType === "video" ? "video" : "audio";
+        showLayer(candidate.callerName, activeCallType === "video" ? "Входящий видеозвонок…" : "Входящий аудиозвонок…", true);
         if (stopIncomingCall) stopIncomingCall();
         stopIncomingCall = onValue(ref(db, "calls/" + candidate.callId), callSnap => {
           const call = callSnap.val();
@@ -287,7 +331,7 @@ export function createCallSystem(api) {
 
   ensureLayer();
   listenForCalls();
-  return { startAudioCall, endCall, dispose() {
+  return { startAudioCall, startVideoCall, endCall, dispose() {
     if (stopInbox) stopInbox();
     if (stopIncomingCall) stopIncomingCall();
     stopIncomingCall = null;
