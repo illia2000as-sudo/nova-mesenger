@@ -108,3 +108,23 @@ body{display:flex}.sidebar{width:260px;min-width:230px;flex-shrink:0;padding:26p
 .group-create-card .full-button{margin-top:16px}
 .group-create-error{min-height:16px;margin:9px 0 0;color:#ff9ba9;font-size:11px}
 @media(max-width:620px){.chat-panel-actions{gap:4px}.chat-panel-actions .icon-button{width:34px;height:34px}.group-create-card{padding:24px 17px}}
+
+
+/* NOVA group management */
+.group-manage-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex-shrink:0;padding:9px 12px;border:1px solid #47435f;border-radius:11px;background:#29263d;color:#e9e4ff;font:inherit;font-size:11px;font-weight:750;cursor:pointer;transition:background .18s,border-color .18s}
+.group-manage-button:hover{background:#39314f;border-color:#8171b7}
+.group-manage-card{max-height:min(88vh,820px);overflow:auto}
+.group-current-members{display:flex;flex-direction:column;gap:7px;max-height:190px;overflow:auto;margin:0 0 16px}
+.group-current-member{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid #34364c;border-radius:11px;background:#202235}
+.group-member-dot{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:#39334f;color:#c9bcff;font-size:12px;font-weight:800;flex-shrink:0}
+.group-current-member>span:last-child{display:flex;flex-direction:column;gap:4px;min-width:0}
+.group-current-member strong{color:#efeeff;font-size:12px}
+.group-current-member small{color:#9ca1bc;font-size:10px}
+.group-manage-card #groupRenameForm{padding-bottom:18px;border-bottom:1px solid #34364c}
+.group-manage-card #groupRenameForm .full-button{margin-top:10px}
+.group-manage-card #groupAddMembersForm{padding-top:2px}
+.group-empty-note{padding:12px;border-radius:10px;background:#202235;color:#9fa4bf;font-size:11px}
+.group-leave-button{width:100%;margin-top:18px;padding:12px;border:1px solid #70404d;border-radius:11px;background:#35212b;color:#ffb7c2;font-size:12px;font-weight:800;cursor:pointer}
+.group-leave-button:hover{background:#472632}
+.group-leave-button:disabled{opacity:.6;cursor:wait}
+@media(max-width:620px){.group-manage-button{padding:8px 9px;font-size:10px}.group-manage-button span{display:none}.group-manage-card{padding:22px 15px}}
