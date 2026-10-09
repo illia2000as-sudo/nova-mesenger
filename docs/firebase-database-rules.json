@@ -5,13 +5,22 @@
     "users": {
       ".read": "auth != null",
       "$uid": {
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth != null && auth.uid === $uid && ((data.exists() && newData.child('username').val() === data.child('username').val() && (root.child('users').child(auth.uid).child('username').val() === 'nova_infinity' || (newData.child('premium').val() === data.child('premium').val() && newData.child('premiumGiftedBy').val() === data.child('premiumGiftedBy').val() && newData.child('premiumGiftedAt').val() === data.child('premiumGiftedAt').val()))) || (!data.exists() && newData.child('username').val() !== 'nova_infinity' && !newData.child('premium').exists() && !newData.child('premiumGiftedBy').exists() && !newData.child('premiumGiftedAt').exists()))",
+        "premium": {
+          ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('username').val() === 'nova_infinity')"
+        },
+        "premiumGiftedBy": {
+          ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('username').val() === 'nova_infinity')"
+        },
+        "premiumGiftedAt": {
+          ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('username').val() === 'nova_infinity')"
+        }
       }
     },
     "usernameIndex": {
       ".read": "auth != null",
       "$username": {
-        ".write": "auth != null && (newData.val() === auth.uid || (!newData.exists() && data.val() === auth.uid))"
+        ".write": "auth != null && ((auth.uid === newData.val() && $username !== 'nova_infinity') || (!newData.exists() && data.val() === auth.uid) || ($username === 'nova_infinity' && data.val() === auth.uid && newData.val() === auth.uid))"
       }
     },
     "friendRequests": {
