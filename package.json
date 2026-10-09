@@ -17,6 +17,7 @@
     "electron": "^38.2.0",
     "electron-builder": "^26.2.0",
     "sharp": "^0.34.4"
+    "png-to-ico": "^2.0.1"
   },
   "build": {
     "appId": "com.nova.messenger",
