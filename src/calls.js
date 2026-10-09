@@ -1,8 +1,11 @@
-// NOVA audio calls — WebRTC audio only, no video track.
+// NOVA calls — WebRTC audio/video with in-call screen sharing.
 export function createCallSystem(api) {
   const { db, ref, set, get, onValue, update, remove, push, toast, esc, initial, getUser } = api;
   let peer = null;
   let localStream = null;
+  let displayStream = null;
+  let screenAudioContext = null;
+  let screenAudioSender = null;
   let activeCallId = null;
   let activeCallRef = null;
   let stopInbox = null;
@@ -29,12 +32,13 @@ export function createCallSystem(api) {
     layer.id = "novaCallLayer";
     layer.className = "call-layer";
     layer.hidden = true;
-    layer.innerHTML = '<section class="call-card" role="dialog" aria-modal="true" aria-labelledby="callTitle"><div class="call-orb" id="callOrb">☎</div><div class="call-eyebrow">NOVA · CALL</div><h2 id="callTitle">Аудиозвонок</h2><p id="callPerson" class="call-person">Пользователь NOVA</p><p id="callStatus" class="call-status">Подключаемся…</p><div id="callVideoStage" class="call-video-stage" hidden><video id="callRemoteVideo" class="call-remote-video" autoplay playsinline></video><video id="callLocalVideo" class="call-local-video" autoplay muted playsinline></video></div><audio id="callRemoteAudio" autoplay></audio><div class="call-controls"><button id="callMuteBtn" class="call-control mute" type="button" title="Выключить микрофон">🎙</button><button id="callCameraBtn" class="call-control camera" type="button" title="Выключить камеру" hidden>📹</button><button id="callHangupBtn" class="call-control hangup" type="button" title="Завершить звонок">☎</button></div><div id="callIncomingActions" class="call-incoming-actions" hidden><button id="callRejectBtn" class="call-reject" type="button">Отклонить</button><button id="callAcceptBtn" class="call-accept" type="button">Принять звонок</button></div><p id="callFootnote" class="call-footnote">Только голос · камера не используется</p></section>';
+    layer.innerHTML = '<section class="call-card" role="dialog" aria-modal="true" aria-labelledby="callTitle"><div class="call-orb" id="callOrb">☎</div><div class="call-eyebrow">NOVA · CALL</div><h2 id="callTitle">Аудиозвонок</h2><p id="callPerson" class="call-person">Пользователь NOVA</p><p id="callStatus" class="call-status">Подключаемся…</p><div id="callVideoStage" class="call-video-stage" hidden><video id="callRemoteVideo" class="call-remote-video" autoplay playsinline></video><video id="callLocalVideo" class="call-local-video" autoplay muted playsinline></video></div><audio id="callRemoteAudio" autoplay></audio><div class="call-controls"><button id="callMuteBtn" class="call-control mute" type="button" title="Выключить микрофон">🎙</button><button id="callCameraBtn" class="call-control camera" type="button" title="Выключить камеру" hidden>📹</button><button id="callScreenBtn" class="call-control screen" type="button" title="Показать экран" hidden>🖥️</button><button id="callHangupBtn" class="call-control hangup" type="button" title="Завершить звонок">☎</button></div><div id="callIncomingActions" class="call-incoming-actions" hidden><button id="callRejectBtn" class="call-reject" type="button">Отклонить</button><button id="callAcceptBtn" class="call-accept" type="button">Принять звонок</button></div><p id="callFootnote" class="call-footnote">Только голос · камера не используется</p></section>';
     document.body.appendChild(layer);
     audioElement = layer.querySelector("#callRemoteAudio");
     remoteVideoElement = layer.querySelector("#callRemoteVideo");
     localVideoElement = layer.querySelector("#callLocalVideo");
     layer.querySelector("#callCameraBtn").addEventListener("click", toggleCamera);
+    layer.querySelector("#callScreenBtn").addEventListener("click", () => toggleScreenShare());
     layer.querySelector("#callHangupBtn").addEventListener("click", () => endCall(true));
     layer.querySelector("#callMuteBtn").addEventListener("click", toggleMute);
     layer.querySelector("#callAcceptBtn").addEventListener("click", acceptIncoming);
@@ -54,6 +58,7 @@ export function createCallSystem(api) {
     layer.querySelector("#callOrb").hidden = activeCallType === "video";
     layer.querySelector("#callVideoStage").hidden = activeCallType !== "video";
     layer.querySelector("#callCameraBtn").hidden = incoming || activeCallType !== "video";
+    layer.querySelector("#callScreenBtn").hidden = incoming || activeCallType !== "video";
     layer.querySelector("#callFootnote").textContent = activeCallType === "video" ? "Видео и звук · камера работает только во время звонка" : "Только голос · камера не используется";
   }
 
@@ -76,6 +81,9 @@ export function createCallSystem(api) {
     stopCall = stopCandidates = null;
     if (peer) { try { peer.onicecandidate = null; peer.ontrack = null; peer.close(); } catch (_) {} }
     peer = null;
+    if (displayStream) { displayStream.getTracks().forEach(track => { track.onended = null; track.stop(); }); displayStream = null; }
+    if (screenAudioContext) { try { screenAudioContext.close(); } catch (_) {} screenAudioContext = null; }
+    screenAudioSender = null;
     if (localStream) localStream.getTracks().forEach(track => track.stop());
     localStream = null;
     if (audioElement) audioElement.srcObject = null;
@@ -295,6 +303,77 @@ export function createCallSystem(api) {
     const button = callLayer()?.querySelector("#callCameraBtn");
     if (button) { button.classList.toggle("muted", enabled); button.textContent = enabled ? "🚫" : "📹"; button.title = enabled ? "Включить камеру" : "Выключить камеру"; }
     setStatus(enabled ? "Камера выключена" : "Разговор идёт");
+  }
+
+  async function toggleScreenShare() {
+    if (!activeCallId || activeCallType !== "video" || !peer) {
+      toast("Для демонстрации экрана сначала начни видеозвонок.", true);
+      return;
+    }
+    if (displayStream) { await stopScreenShare(true); return; }
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      toast("Демонстрация экрана недоступна. Открой NOVA в Chrome или Edge.", true);
+      return;
+    }
+    let pickedStream = null;
+    try {
+      pickedStream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 30, max: 60 } }, audio: true });
+      const displayVideoTrack = pickedStream.getVideoTracks()[0];
+      const videoSender = peer.getSenders().find(sender => sender.track?.kind === "video");
+      if (!displayVideoTrack || !videoSender) throw new Error("Не найден видеоканал. Перезапусти видеозвонок.");
+      await videoSender.replaceTrack(displayVideoTrack);
+      displayStream = pickedStream;
+      if (localVideoElement) localVideoElement.srcObject = displayStream;
+      const button = callLayer()?.querySelector("#callScreenBtn");
+      if (button) { button.textContent = "⏹"; button.title = "Остановить показ экрана"; button.classList.add("sharing"); }
+      displayVideoTrack.onended = () => { if (displayStream) stopScreenShare(true); };
+      const displayAudioTracks = pickedStream.getAudioTracks();
+      const micTracks = localStream?.getAudioTracks() || [];
+      if (displayAudioTracks.length && micTracks.length) {
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          const audioSender = peer.getSenders().find(sender => sender.track?.kind === "audio");
+          if (AudioContextClass && audioSender) {
+            screenAudioContext = new AudioContextClass();
+            await screenAudioContext.resume();
+            const destination = screenAudioContext.createMediaStreamDestination();
+            screenAudioContext.createMediaStreamSource(new MediaStream(micTracks)).connect(destination);
+            screenAudioContext.createMediaStreamSource(new MediaStream(displayAudioTracks)).connect(destination);
+            const mixedTrack = destination.stream.getAudioTracks()[0];
+            if (mixedTrack) { await audioSender.replaceTrack(mixedTrack); screenAudioSender = audioSender; }
+          }
+        } catch (audioError) {
+          console.warn("NOVA screen audio mix unavailable:", audioError);
+          toast("Экран показывается, но звук игры не удалось подключить.", true);
+        }
+      }
+      setStatus(displayAudioTracks.length ? "Ты показываешь экран · звук зависит от источника" : "Ты показываешь экран");
+      toast("Демонстрация экрана включена. Чтобы закончить, нажми ⏹.");
+    } catch (e) {
+      if (pickedStream && pickedStream !== displayStream) pickedStream.getTracks().forEach(track => track.stop());
+      console.error("NOVA screen share error:", e);
+      if (e?.name === "NotAllowedError" || e?.name === "AbortError") return;
+      toast("Не удалось показать экран: " + (e?.message || "ошибка доступа"), true);
+    }
+  }
+
+  async function stopScreenShare(notify = false) {
+    const stream = displayStream;
+    if (!stream) return;
+    displayStream = null;
+    const cameraTrack = localStream?.getVideoTracks().find(track => track.readyState === "live");
+    const videoSender = peer?.getSenders().find(sender => sender.track?.kind === "video");
+    try { if (cameraTrack && videoSender) await videoSender.replaceTrack(cameraTrack); } catch (e) { console.warn("NOVA restore camera:", e); }
+    const micTrack = localStream?.getAudioTracks().find(track => track.readyState === "live");
+    try { if (screenAudioSender && micTrack) await screenAudioSender.replaceTrack(micTrack); } catch (e) { console.warn("NOVA restore microphone:", e); }
+    screenAudioSender = null;
+    if (screenAudioContext) { try { await screenAudioContext.close(); } catch (_) {} screenAudioContext = null; }
+    stream.getTracks().forEach(track => { track.onended = null; track.stop(); });
+    if (localVideoElement) localVideoElement.srcObject = localStream;
+    const button = callLayer()?.querySelector("#callScreenBtn");
+    if (button) { button.textContent = "🖥️"; button.title = "Показать экран"; button.classList.remove("sharing"); }
+    setStatus("Разговор идёт");
+    if (notify) toast("Демонстрация экрана остановлена.");
   }
 
   function listenForCalls() {
