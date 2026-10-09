@@ -124,6 +124,17 @@ function showAuth() {
 function shell() {
   document.body.innerHTML = '<aside class="sidebar"><div class="brand"><div class="brand-mark">✦</div><div><h1>NOVA</h1><small>MESSENGER</small></div></div><button class="nav active" data-page="chats"><span>▤</span> Сообщения <b id="chatBadge" class="badge" hidden>0</b></button><button class="nav" data-page="friends"><span>♧</span> Друзья</button><button class="nav" data-page="requests"><span>♡</span> Заявки <b id="requestBadge" class="badge" hidden>0</b></button><button class="nav" data-page="gifts"><span>🎁</span> Подарки</button><button class="nav premium-nav" data-page="premium"><span>✧</span> NOVA Premium <em>SOON</em></button><button class="nav" data-page="profile"><span>⚙</span> Мой профиль</button><div class="sidebar-bottom"><div class="profile-mini"><div class="avatar" id="sideAvatar">N</div><div class="profile-text"><strong id="sideName">Загрузка…</strong><small id="sideHandle">@nova</small></div><button class="icon-button" id="logoutBtn" title="Выйти">↪</button></div><div class="connection"><i></i> Подключено к NOVA</div></div></aside><main class="main-shell"><header class="topbar"><div><div class="eyebrow">ТВОЁ ПРОСТРАНСТВО</div><h2 id="pageTitle">Сообщения</h2></div><div class="topbar-right"><span class="currency-pill">✦ <strong id="currencyBalance">50</strong> NOVA</span><span class="online-dot"></span><span>В сети</span></div></header><section id="content" class="content"></section></main><div id="toast" class="toast"></div>';
   document.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => showPage(b.dataset.page)));
+  document.addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      if (currentPage !== "chats") showPage("chats");
+      setTimeout(() => { const input = $("#chatFilter"); if (input) { input.focus(); input.select(); } }, 30);
+    }
+    if (e.key === "Escape") {
+      const bar = $("#messageSearchBar");
+      if (bar && !bar.hidden) { bar.hidden = true; const input = $("#messageSearchInput"); if (input) input.value = ""; }
+    }
+  });
   $("#logoutBtn").addEventListener("click", async () => { try { await signOut(auth); } catch(e) { toast(errorText(e), true); } });
 }
 function updateSidebar() {
@@ -191,7 +202,45 @@ async function openChat(chatId, info) {
   const isGroup = activeChatUser.isGroup === true;
   const chatTitle = activeChatUser.groupName || activeChatUser.displayName || activeChatUser.username || "Диалог";
   const chatSubtitle = isGroup ? ("Группа · " + Number(activeChatUser.memberCount || (activeChatUser.memberUids || []).length || 0) + " участников") : ("@" + (activeChatUser.username || "user"));
-  stage.innerHTML = '<div class="conversation-head">'+avatarMarkup(activeChatUser)+'<div><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Звонок</span></button><button id="videoCallBtn" class="call-start-button video-call-start-button" type="button" title="Начать видеозвонок">📹 <span>Видео</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…"><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  stage.innerHTML = '<div class="conversation-head">'+avatarMarkup(activeChatUser)+'<div class="conversation-title"><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div><button id="messageSearchToggle" class="icon-button conversation-search-toggle" type="button" title="Найти сообщение" aria-label="Найти сообщение">⌕</button>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Звонок</span></button><button id="videoCallBtn" class="call-start-button video-call-start-button" type="button" title="Начать видеозвонок">📹 <span>Видео</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageSearchBar" class="message-search-bar" hidden><span>⌕</span><input id="messageSearchInput" type="search" placeholder="Найти в переписке…" autocomplete="off"><span id="messageSearchCount" class="message-search-count"></span><button id="messageSearchClose" type="button" title="Закрыть поиск">×</button></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><button id="jumpToLatest" class="jump-to-latest" type="button" title="К последним сообщениям" aria-label="К последним сообщениям">↓<span>Новые сообщения</span></button><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…"><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  let conversationSearchQuery = "";
+  let firstMessageLoad = true;
+  const searchBar = $("#messageSearchBar"), searchInput = $("#messageSearchInput"), searchCount = $("#messageSearchCount");
+  const applyConversationSearch = () => {
+    const box = $("#messageList"); if (!box) return;
+    const rows = [...box.querySelectorAll(".message-row")];
+    let matches = 0;
+    rows.forEach(row => {
+      const found = !conversationSearchQuery || row.textContent.toLocaleLowerCase().includes(conversationSearchQuery);
+      row.classList.toggle("search-match", !!conversationSearchQuery && found);
+      row.classList.toggle("search-dimmed", !!conversationSearchQuery && !found);
+      if (found) matches++;
+    });
+    if (searchCount) searchCount.textContent = conversationSearchQuery ? (matches + " найдено") : "";
+    if (conversationSearchQuery && matches) {
+      const first = rows.find(row => row.classList.contains("search-match"));
+      if (first) first.scrollIntoView({block:"center",behavior:"smooth"});
+    }
+  };
+  const searchToggle = $("#messageSearchToggle");
+  if (searchToggle) searchToggle.addEventListener("click", () => {
+    if (!searchBar) return;
+    searchBar.hidden = !searchBar.hidden;
+    if (!searchBar.hidden) { searchInput.focus(); searchInput.select(); }
+    else { conversationSearchQuery = ""; searchInput.value = ""; applyConversationSearch(); }
+  });
+  if (searchInput) searchInput.addEventListener("input", () => { conversationSearchQuery = searchInput.value.trim().toLocaleLowerCase(); applyConversationSearch(); });
+  const searchClose = $("#messageSearchClose");
+  if (searchClose) searchClose.addEventListener("click", () => { searchBar.hidden = true; conversationSearchQuery = ""; searchInput.value = ""; applyConversationSearch(); });
+  const jumpButton = $("#jumpToLatest"), messageBox = $("#messageList");
+  if (jumpButton && messageBox) {
+    jumpButton.addEventListener("click", () => messageBox.scrollTo({top:messageBox.scrollHeight,behavior:"smooth"}));
+    messageBox.addEventListener("scroll", () => {
+      const away = messageBox.scrollHeight - messageBox.scrollTop - messageBox.clientHeight > 180;
+      jumpButton.classList.toggle("visible", away);
+      if (!away) jumpButton.classList.remove("has-new");
+    }, {passive:true});
+  }
   const giftButton = $("#giftOpenBtn"); if (giftButton) giftButton.addEventListener("click", openGiftPicker);
   const groupManageButton = $("#groupManageBtn"); if (groupManageButton) groupManageButton.addEventListener("click", () => openManageGroup(chatId, activeChatUser));
   $("#mediaInput").addEventListener("change", async e => { const file = e.target.files && e.target.files[0]; e.target.value = ""; if (file) await sendMedia(file); });
@@ -209,8 +258,13 @@ async function openChat(chatId, info) {
   stopMessages = onValue(ref(db, "messages/" + chatId), snap => {
     const messages = Object.entries(snap.val() || {}).sort((a,b)=>(a[1].createdAt||0)-(b[1].createdAt||0));
     const box = $("#messageList"); if (!box) return;
+    const oldTop = box.scrollTop;
+    const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 140;
     box.innerHTML = messages.length ? messages.map(x => x[1].type === "gift" ? renderGiftMessage(x[1]) : x[1].type === "media" ? renderMediaMessage(x[1]) : '<div class="message-row '+(x[1].senderUid===currentUser.uid?"mine":"")+'"><div class="message-bubble"><div>'+esc(x[1].text || "").replace(/\n/g,"<br>")+'</div><small>'+timeLabel(x[1].createdAt||Date.now())+(x[1].senderUid===currentUser.uid?" · Вы":"")+'</small></div></div>').join("") : '<div class="empty-messages"><span>✦</span><p>Это начало вашей истории. Напиши первым!</p></div>';
-    box.scrollTop = box.scrollHeight;
+    if (firstMessageLoad || nearBottom) box.scrollTop = box.scrollHeight;
+    else { box.scrollTop = oldTop; if (jumpButton) jumpButton.classList.add("visible","has-new"); }
+    firstMessageLoad = false;
+    applyConversationSearch();
   }, e => toast(errorText(e), true));
   $("#messageForm").addEventListener("submit", async e => {
     e.preventDefault();
