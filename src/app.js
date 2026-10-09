@@ -204,7 +204,7 @@ async function openChat(chatId, info) {
     try {
       const now = Date.now(), id = activeChatId, message = push(ref(db, "messages/" + id));
       await set(message, {senderUid:currentUser.uid,text,createdAt:now});
-      const chat = cachedChats[id] || {}, updates = {};
+      const chat = cachedChats[id] || activeChatUser || {}, updates = {};
       updates["chats/"+id+"/lastMessage"] = text.slice(0,120);
       updates["chats/"+id+"/updatedAt"] = now;
       updates["userChats/"+currentUser.uid+"/"+id+"/lastMessage"] = text.slice(0,120);
