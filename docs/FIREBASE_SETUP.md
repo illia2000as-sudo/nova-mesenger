@@ -49,3 +49,17 @@
 ## NOVA Gifts и монеты
 
 Новые аккаунты получают 50 NOVA-монет. При первом входе в старый аккаунт без поля `coins` приложение также добавляет стартовый баланс 50. Внутренняя витрина содержит семь подарков, а отправка уменьшает баланс отправителя и публикует карточку подарка в личном чате. Это клиентский прототип: для публичного запуска валюту и отправку подарков следует перенести на доверенный сервер/Cloud Functions, чтобы исключить подмену баланса модифицированным клиентом.
+
+
+## NOVA avatars and chat media
+
+The app now supports profile photos (JPG, PNG, WEBP, GIF), looping video avatars (MP4/WebM, maximum 5 seconds), and photo/video attachments in private chats. Current client-side limits: avatar images 8 MB, avatar videos 20 MB, chat images 12 MB, chat videos 50 MB and 60 seconds.
+
+**One-time Firebase setup is required for uploads:**
+
+1. In Firebase Console, open project `nova-729f3` → **Storage** and complete the setup if Storage has not been enabled yet.
+2. Open **Storage → Rules**.
+3. Copy the full contents of `docs/firebase-storage-rules.txt` from this repository into the Rules editor and click **Publish**.
+4. Rebuild the Windows app from GitHub Actions and test uploads while signed in.
+
+These are starter rules, not production security. They allow any signed-in account to read media stored in these paths, because the current client rules do not verify chat membership against Realtime Database. Before inviting public users, move media access to a trusted backend and enforce chat membership there. Firebase Storage may also require a billing plan depending on project configuration.
