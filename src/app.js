@@ -130,10 +130,6 @@ function shell() {
       if (currentPage !== "chats") showPage("chats");
       setTimeout(() => { const input = $("#chatFilter"); if (input) { input.focus(); input.select(); } }, 30);
     }
-    if (e.key === "Escape") {
-      const bar = $("#messageSearchBar");
-      if (bar && !bar.hidden) { bar.hidden = true; const input = $("#messageSearchInput"); if (input) input.value = ""; }
-    }
   });
   $("#logoutBtn").addEventListener("click", async () => { try { await signOut(auth); } catch(e) { toast(errorText(e), true); } });
 }
@@ -202,7 +198,11 @@ async function openChat(chatId, info) {
   const isGroup = activeChatUser.isGroup === true;
   const chatTitle = activeChatUser.groupName || activeChatUser.displayName || activeChatUser.username || "Диалог";
   const chatSubtitle = isGroup ? ("Группа · " + Number(activeChatUser.memberCount || (activeChatUser.memberUids || []).length || 0) + " участников") : ("@" + (activeChatUser.username || "user"));
-  stage.innerHTML = '<div class="conversation-head">'+avatarMarkup(activeChatUser)+'<div class="conversation-title"><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div><button id="messageSearchToggle" class="icon-button conversation-search-toggle" type="button" title="Найти сообщение" aria-label="Найти сообщение">⌕</button>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Звонок</span></button><button id="videoCallBtn" class="call-start-button video-call-start-button" type="button" title="Начать видеозвонок">📹 <span>Видео</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageSearchBar" class="message-search-bar" hidden><span>⌕</span><input id="messageSearchInput" type="search" placeholder="Найти в переписке…" autocomplete="off"><span id="messageSearchCount" class="message-search-count"></span><button id="messageSearchClose" type="button" title="Закрыть поиск">×</button></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><button id="jumpToLatest" class="jump-to-latest" type="button" title="К последним сообщениям" aria-label="К последним сообщениям">↓<span>Новые сообщения</span></button><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…"><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  stage.innerHTML = '<div class="conversation-head"><button id="mobileChatBack" class="mobile-chat-back" type="button" title="Назад к диалогам" aria-label="Назад к диалогам">←</button>'+avatarMarkup(activeChatUser)+'<div class="conversation-title"><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div><button id="messageSearchToggle" class="icon-button conversation-search-toggle" type="button" title="Найти сообщение" aria-label="Найти сообщение">⌕</button>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Звонок</span></button><button id="videoCallBtn" class="call-start-button video-call-start-button" type="button" title="Начать видеозвонок">📹 <span>Видео</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageSearchBar" class="message-search-bar" hidden><span>⌕</span><input id="messageSearchInput" type="search" placeholder="Найти в переписке…" autocomplete="off"><span id="messageSearchCount" class="message-search-count"></span><button id="messageSearchClose" type="button" title="Закрыть поиск">×</button></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><button id="jumpToLatest" class="jump-to-latest" type="button" title="К последним сообщениям" aria-label="К последним сообщениям">↓<span>Новые сообщения</span></button><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Напиши сообщение…"><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  const chatLayout = $(".chat-layout");
+  if (chatLayout) chatLayout.classList.add("has-open-chat");
+  const mobileBack = $("#mobileChatBack");
+  if (mobileBack) mobileBack.addEventListener("click", () => { activeChatId = null; activeChatUser = null; renderChatsPage(); });
   let conversationSearchQuery = "";
   let firstMessageLoad = true;
   const searchBar = $("#messageSearchBar"), searchInput = $("#messageSearchInput"), searchCount = $("#messageSearchCount");
@@ -231,7 +231,9 @@ async function openChat(chatId, info) {
   });
   if (searchInput) searchInput.addEventListener("input", () => { conversationSearchQuery = searchInput.value.trim().toLocaleLowerCase(); applyConversationSearch(); });
   const searchClose = $("#messageSearchClose");
-  if (searchClose) searchClose.addEventListener("click", () => { searchBar.hidden = true; conversationSearchQuery = ""; searchInput.value = ""; applyConversationSearch(); });
+  const closeConversationSearch = () => { if (searchBar) searchBar.hidden = true; conversationSearchQuery = ""; if (searchInput) searchInput.value = ""; applyConversationSearch(); };
+  if (searchClose) searchClose.addEventListener("click", closeConversationSearch);
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && searchBar && !searchBar.hidden) closeConversationSearch(); });
   const jumpButton = $("#jumpToLatest"), messageBox = $("#messageList");
   if (jumpButton && messageBox) {
     jumpButton.addEventListener("click", () => messageBox.scrollTo({top:messageBox.scrollHeight,behavior:"smooth"}));
