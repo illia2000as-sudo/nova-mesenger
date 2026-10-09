@@ -1,5 +1,5 @@
 
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, session } = require("electron");
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -19,7 +19,14 @@ function createWindow() {
   win.loadFile("src/index.html");
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  // The app uses the microphone for audio-only WebRTC calls; video is never requested.
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    const allowed = permission === "media" && Array.isArray(details.mediaTypes) && details.mediaTypes.includes("audio");
+    callback(allowed);
+  });
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
