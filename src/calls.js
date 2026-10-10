@@ -22,18 +22,79 @@ export function createCallSystem(api) {
   let localVideoElement = null;
   let activeCallType = "audio";
   let remoteCandidateData = {};
+  let callPopup = null;
+  let ringtoneContext = null;
+  let ringtoneTimer = null;
+  let ringtoneStep = 0;
 
   const uid = () => getUser()?.uid;
-  const callLayer = () => document.getElementById("novaCallLayer");
+  const callLayer = () => {
+    try { if (callPopup && !callPopup.closed) return callPopup.document.getElementById("novaCallLayer"); } catch (_) {}
+    return document.getElementById("novaCallLayer");
+  };
+
+  function stopRingtone() {
+    if (ringtoneTimer) clearInterval(ringtoneTimer);
+    ringtoneTimer = null;
+    ringtoneStep = 0;
+    if (ringtoneContext) { try { ringtoneContext.close(); } catch (_) {} }
+    ringtoneContext = null;
+  }
+
+  function startRingtone(kind = "incoming") {
+    stopRingtone();
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    try {
+      ringtoneContext = new AudioContextClass();
+      const playTone = () => {
+        if (!ringtoneContext || ringtoneContext.state === "closed") return;
+        const ctx = ringtoneContext;
+        const now = ctx.currentTime;
+        const pattern = kind === "incoming" ? [0, 0.38, 0.76] : [0, 0.32];
+        pattern.forEach(offset => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.value = kind === "incoming" ? 740 : 520;
+          gain.gain.setValueAtTime(0.0001, now + offset);
+          gain.gain.exponentialRampToValueAtTime(0.11, now + offset + 0.025);
+          gain.gain.setValueAtTime(0.11, now + offset + 0.18);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.27);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(now + offset); osc.stop(now + offset + 0.29);
+        });
+      };
+      playTone();
+      ringtoneTimer = setInterval(playTone, kind === "incoming" ? 2400 : 1800);
+    } catch (e) { console.warn("NOVA ringtone:", e); stopRingtone(); }
+  }
 
   function ensureLayer() {
-    if (callLayer()) return;
-    const layer = document.createElement("div");
+    if (callLayer()) {
+      try { callPopup?.focus(); } catch (_) {}
+      return;
+    }
+    try {
+      if (!callPopup || callPopup.closed) {
+        callPopup = window.open("", "nova-call-window", "width=430,height=700,resizable=yes,scrollbars=no");
+      }
+    } catch (_) { callPopup = null; }
+    if (!callPopup) {
+      toast("Окно звонка заблокировано. Разреши всплывающие окна для NOVA.", true);
+      throw new Error("Не удалось открыть окно звонка.");
+    }
+    const popup = callPopup;
+    popup.document.open();
+    popup.document.write('<!doctype html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NOVA · Звонок</title><style> *{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% 0%,#8c80ff25,transparent 50%),linear-gradient(155deg,#111625,#090c14);color:#f4f5ff;font:14px Segoe UI,Arial,sans-serif;display:grid;place-items:center;padding:18px} .call-layer{width:100%;display:grid;place-items:center}.call-layer[hidden],[hidden]{display:none!important}.call-card{width:100%;max-width:390px;text-align:center;padding:28px 22px 22px;border:1px solid #ffffff20;border-radius:25px;background:linear-gradient(155deg,#1d2435,#111622);box-shadow:0 25px 80px #0009}.call-orb{width:82px;height:82px;margin:0 auto 18px;display:grid;place-items:center;border-radius:28px;background:linear-gradient(145deg,#777cf4,#9a7ee9);font-size:34px;animation:pulse 2s ease-in-out infinite}.call-eyebrow{font-size:9px;letter-spacing:2.5px;font-weight:800;color:#aaa7ff}.call-card h2{margin:10px 0;font-size:23px}.call-person{margin:0;color:#d7d9ec;font-size:14px}.call-status{min-height:18px;margin:12px 0 20px;color:#a6aec7;font-size:12px}#callRemoteAudio{display:none}.call-controls{display:flex;justify-content:center;align-items:center;gap:16px;margin:16px 0}.call-control{width:54px;height:54px;border:1px solid #ffffff20;border-radius:18px;background:#2c3347;color:#fff;font-size:21px;cursor:pointer}.call-control:hover{filter:brightness(1.15)}.call-control.muted{background:#55402e}.call-control.hangup{background:linear-gradient(145deg,#f05e78,#c93859);border:0;border-radius:50%;transform:rotate(135deg)}.call-incoming-actions{display:flex;gap:10px;margin-top:12px}.call-incoming-actions[hidden]{display:none}.call-incoming-actions button{flex:1;border:0;border-radius:12px;padding:13px 8px;color:white;font-size:12px;font-weight:800;cursor:pointer}.call-reject{background:#71334a}.call-accept{background:linear-gradient(120deg,#23966e,#37b68a)}.call-footnote{margin:18px 0 0;color:#858eaa;font-size:10px}.call-video-stage{position:relative;overflow:hidden;aspect-ratio:4/3;border-radius:16px;background:#070a10}.call-remote-video{width:100%;height:100%;object-fit:cover}.call-local-video{position:absolute;right:10px;bottom:10px;width:28%;border-radius:10px;border:1px solid #ffffff55}.sharing{background:#246a5c!important}@keyframes pulse{0%,100%{transform:scale(1);box-shadow:0 0 28px #7977ff25}50%{transform:scale(1.04);box-shadow:0 0 52px #7977ff55}}</style></head><body></body></html>');
+    popup.document.close();
+    popup.document.title = "NOVA · Звонок";
+    const layer = popup.document.createElement("div");
     layer.id = "novaCallLayer";
     layer.className = "call-layer";
     layer.hidden = true;
-    layer.innerHTML = '<section class="call-card" role="dialog" aria-modal="true" aria-labelledby="callTitle"><div class="call-orb" id="callOrb">☎</div><div class="call-eyebrow">NOVA · CALL</div><h2 id="callTitle">Аудиозвонок</h2><p id="callPerson" class="call-person">Пользователь NOVA</p><p id="callStatus" class="call-status">Подключаемся…</p><div id="callVideoStage" class="call-video-stage" hidden><video id="callRemoteVideo" class="call-remote-video" autoplay playsinline></video><video id="callLocalVideo" class="call-local-video" autoplay muted playsinline></video></div><audio id="callRemoteAudio" autoplay></audio><div class="call-controls"><button id="callMuteBtn" class="call-control mute" type="button" title="Выключить микрофон">🎙</button><button id="callCameraBtn" class="call-control camera" type="button" title="Выключить камеру" hidden>📹</button><button id="callScreenBtn" class="call-control screen" type="button" title="Показать экран" hidden>🖥️</button><button id="callHangupBtn" class="call-control hangup" type="button" title="Завершить звонок">☎</button></div><div id="callIncomingActions" class="call-incoming-actions" hidden><button id="callRejectBtn" class="call-reject" type="button">Отклонить</button><button id="callAcceptBtn" class="call-accept" type="button">Принять звонок</button></div><p id="callFootnote" class="call-footnote">Только голос · камера не используется</p></section>';
-    document.body.appendChild(layer);
+    layer.innerHTML = '<section class="call-card" role="dialog" aria-modal="true" aria-labelledby="callTitle"><div class="call-orb" id="callOrb">☎</div><div class="call-eyebrow">NOVA · CALL</div><h2 id="callTitle">Аудиозвонок</h2><p id="callPerson" class="call-person">Пользователь NOVA</p><p id="callStatus" class="call-status">Подключаемся…</p><div id="callVideoStage" class="call-video-stage" hidden><video id="callRemoteVideo" class="call-remote-video" autoplay playsinline></video><video id="callLocalVideo" class="call-local-video" autoplay muted playsinline></video></div><audio id="callRemoteAudio" autoplay></audio><div class="call-controls"><button id="callMuteBtn" class="call-control mute" type="button" title="Выключить микрофон">🎙</button><button id="callCameraBtn" class="call-control camera" type="button" title="Выключить камеру" hidden>📹</button><button id="callScreenBtn" class="call-control screen" type="button" title="Показать экран">🖥️</button><button id="callHangupBtn" class="call-control hangup" type="button" title="Завершить звонок">☎</button></div><div id="callIncomingActions" class="call-incoming-actions" hidden><button id="callRejectBtn" class="call-reject" type="button">Отклонить</button><button id="callAcceptBtn" class="call-accept" type="button">Ответить</button></div><p id="callFootnote" class="call-footnote">Только голос · камера не используется</p></section>';
+    popup.document.body.appendChild(layer);
     audioElement = layer.querySelector("#callRemoteAudio");
     remoteVideoElement = layer.querySelector("#callRemoteVideo");
     localVideoElement = layer.querySelector("#callLocalVideo");
@@ -43,6 +104,13 @@ export function createCallSystem(api) {
     layer.querySelector("#callMuteBtn").addEventListener("click", toggleMute);
     layer.querySelector("#callAcceptBtn").addEventListener("click", acceptIncoming);
     layer.querySelector("#callRejectBtn").addEventListener("click", rejectIncoming);
+    popup.onbeforeunload = () => {
+      if (popup.__novaClosing) return;
+      stopRingtone();
+      if (activeCallId) endCall(true);
+      else if (incomingCall) rejectIncoming();
+      callPopup = null;
+    };
   }
 
   function showLayer(name, status, incoming = false) {
@@ -63,11 +131,18 @@ export function createCallSystem(api) {
   }
 
   function hideLayer() {
+    stopRingtone();
     const layer = callLayer();
     if (layer) layer.hidden = true;
     if (audioElement) audioElement.srcObject = null;
     if (remoteVideoElement) remoteVideoElement.srcObject = null;
     if (localVideoElement) localVideoElement.srcObject = null;
+    if (callPopup && !callPopup.closed) {
+      const popup = callPopup;
+      popup.__novaClosing = true;
+      try { popup.close(); } catch (_) {}
+    }
+    callPopup = null;
   }
 
   function setStatus(value) {
@@ -102,6 +177,7 @@ export function createCallSystem(api) {
   async function endCall(notify = true, message = "Звонок завершён.") {
     if (finishing) return;
     finishing = true;
+    stopRingtone();
     const id = activeCallId;
     const userId = uid();
     cleanupLocal();
@@ -204,10 +280,12 @@ export function createCallSystem(api) {
         createdAt: Date.now()
       });
       setStatus(activeCallType === "video" ? "Видеозвонок · звоним…" : "Звоним…");
+      startRingtone("outgoing");
       stopCall = onValue(callRef, snap => {
         const data = snap.val();
         if (!data) return;
         if (data.status === "active" && data.answer && peer && !peer.remoteDescription) {
+          stopRingtone();
           peer.setRemoteDescription(new RTCSessionDescription(data.answer)).then(() => {
             setStatus(activeCallType === "video" ? "Соединяем видео…" : "Соединяем голос…");
             processRemoteCandidates();
@@ -234,6 +312,7 @@ export function createCallSystem(api) {
     if (stopIncomingCall) stopIncomingCall();
     stopIncomingCall = null;
     try {
+      stopRingtone();
       activeCallType = incoming.callType === "video" ? "video" : "audio";
       showLayer(incoming.callerName, activeCallType === "video" ? "Подключаем камеру и микрофон…" : "Подключаем микрофон…");
       localStream = await navigator.mediaDevices.getUserMedia({
@@ -276,6 +355,7 @@ export function createCallSystem(api) {
   async function rejectIncoming() {
     const incoming = incomingCall;
     incomingCall = null;
+    stopRingtone();
     if (stopIncomingCall) stopIncomingCall();
     stopIncomingCall = null;
     hideLayer();
@@ -392,11 +472,13 @@ export function createCallSystem(api) {
         ensureLayer();
         activeCallType = candidate.callType === "video" ? "video" : "audio";
         showLayer(candidate.callerName, activeCallType === "video" ? "Входящий видеозвонок…" : "Входящий аудиозвонок…", true);
+        startRingtone("incoming");
         if (stopIncomingCall) stopIncomingCall();
         stopIncomingCall = onValue(ref(db, "calls/" + candidate.callId), callSnap => {
           const call = callSnap.val();
           if ((!call || call.status !== "ringing") && incomingCall?.callId === candidate.callId && !activeCallId) {
             incomingCall = null;
+            stopRingtone();
             if (stopIncomingCall) stopIncomingCall();
             stopIncomingCall = null;
             hideLayer();
@@ -408,9 +490,9 @@ export function createCallSystem(api) {
     }, e => console.warn("NOVA call inbox listener:", e));
   }
 
-  ensureLayer();
   listenForCalls();
   return { startAudioCall, startVideoCall, endCall, dispose() {
+    stopRingtone();
     if (stopInbox) stopInbox();
     if (stopIncomingCall) stopIncomingCall();
     stopIncomingCall = null;
