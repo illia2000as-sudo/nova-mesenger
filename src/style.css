@@ -445,3 +445,18 @@ input:not([type=checkbox]):not([type=radio]),textarea,select{transition:border-c
 .conversation-notification-toggle.notifications-enabled{color:#72edc6;background:#72edc617;border-color:#72edc645;opacity:1;box-shadow:0 0 0 3px #72edc60b}
 .conversation-notification-toggle:hover{opacity:1}
 @media(max-width:720px){.conversation-notification-toggle{width:32px;height:32px}}
+
+
+/* PC update: collapsible conversation header and animated NOVA gifts */
+.conversation-head{position:relative;z-index:30;transition:transform .22s ease,opacity .22s ease,margin-bottom .22s ease;}
+.conversation-head.conversation-head-hidden{transform:translateY(-105%);margin-bottom:-74px;opacity:.08;pointer-events:none;}
+.gift-product-emoji,.gift-message-emoji{transform-origin:center;will-change:transform;}
+.gift-product:hover .gift-product-emoji{animation:novaGiftPop .55s cubic-bezier(.2,.8,.2,1);}
+.gift-message-emoji.gift-bounce{animation:novaGiftEntrance .9s cubic-bezier(.18,.8,.25,1) both,novaGiftFloat 2.8s ease-in-out .9s infinite;}
+.gift-motion-rocket .gift-message-emoji{filter:drop-shadow(0 0 18px #8aa7ff);}
+.gift-motion-premium .gift-message-emoji,.gift-motion-gem .gift-message-emoji{filter:drop-shadow(0 0 18px #c4a1ff);}
+.gift-motion-fireworks .gift-message-emoji{filter:drop-shadow(0 0 18px #ff9fcf);}
+@keyframes novaGiftPop{0%,100%{transform:scale(1) rotate(0)}35%{transform:scale(1.2) rotate(-8deg)}70%{transform:scale(1.08) rotate(7deg)}}
+@keyframes novaGiftEntrance{0%{opacity:0;transform:translateY(20px) scale(.55) rotate(-12deg)}65%{opacity:1;transform:translateY(-5px) scale(1.12) rotate(5deg)}100%{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
+@keyframes novaGiftFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-5px) rotate(2deg)}}
+@media(prefers-reduced-motion:reduce){.gift-message-emoji.gift-bounce{animation:none!important}.gift-product:hover .gift-product-emoji{animation:none!important}.conversation-head{transition:none!important}}
