@@ -15,6 +15,7 @@ A dark, Aurora Glass-styled messenger built with **HTML, CSS, JavaScript, Fireba
 - **Media and gifts** — send supported images/videos and in-app NOVA gifts.
 - **Calls** — audio calling is implemented; video and screen sharing depend on browser/Electron permissions, network conditions and WebRTC connectivity.
 - **NOVA Premium preview** — gifting UI is present; paid subscriptions are not enabled.
+- **Mobile web/PWA preview** — open `/mobile/` for a touch-first layout with bottom navigation, full-screen conversations, safe-area support and an installable app shell. The mobile version shares the same Firebase project and account database as desktop.
 - **Windows desktop build** — GitHub Actions builds an installer automatically after pushes to `main`.
 
 ## Keyboard shortcut
