@@ -19,7 +19,7 @@ const db = getDatabase(firebaseApp);
 const storage = getStorage(firebaseApp);
 const $ = (s) => document.querySelector(s);
 let currentUser = null, currentProfile = null, currentPage = "chats", activeChatId = null, activeChatUser = null;
-let stopUserChats = null, stopMessages = null, stopRequests = null, stopCoins = null, stopOwnProfile = null;
+let stopUserChats = null, stopMessages = null, stopReadReceipt = null, stopRequests = null, stopCoins = null, stopOwnProfile = null;
 let callSystem = null;
 let cachedChats = {}, cachedFriends = {}, cachedRequests = {};
 
@@ -73,10 +73,11 @@ function toast(message, error) {
 function stopListeners() {
   if (stopUserChats) stopUserChats();
   if (stopMessages) stopMessages();
+  if (stopReadReceipt) stopReadReceipt();
   if (stopRequests) stopRequests();
   if (stopCoins) stopCoins();
   if (stopOwnProfile) stopOwnProfile();
-  stopUserChats = stopMessages = stopRequests = stopCoins = stopOwnProfile = null;
+  stopUserChats = stopMessages = stopReadReceipt = stopRequests = stopCoins = stopOwnProfile = null;
 }
 function showAuth() {
   stopListeners();
@@ -151,7 +152,9 @@ function listenData() {
   }, e => console.warn("NOVA profile sync:", e));
   stopUserChats = onValue(ref(db, "userChats/" + currentUser.uid), snap => {
     cachedChats = snap.val() || {};
-    const badge = $("#chatBadge"); if (badge) badge.hidden = Object.keys(cachedChats).length === 0;
+    const unreadCount = Object.entries(cachedChats).filter(([id, chat]) => id !== activeChatId && Number(chat.lastMessageAt || 0) > Number(chat.lastReadAt || 0) && chat.lastMessageAt).length;
+    const badge = $("#chatBadge");
+    if (badge) { badge.hidden = unreadCount === 0; badge.textContent = unreadCount > 99 ? "99+" : String(unreadCount); badge.title = unreadCount + " непрочитанных чатов"; }
     if (currentPage === "chats") { if (activeChatId) renderChatListOnly(); else renderChatsPage(); }
   }, e => toast(errorText(e), true));
   stopCoins = onValue(ref(db, "users/" + currentUser.uid + "/coins"), snap => { currentProfile.coins = Number(snap.val() ?? 50); updateCurrencyDisplay(); if (currentPage === "gifts") renderGiftShopPage(); }, e => toast(errorText(e), true));
@@ -189,20 +192,51 @@ function renderChatListOnly() {
   const filter = ($("#chatFilter") ? $("#chatFilter").value : "").toLowerCase();
   const entries = Object.entries(cachedChats).sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0)).filter(x => (x[1].username || x[1].displayName || "").toLowerCase().includes(filter));
   if (!entries.length) { list.innerHTML = '<div class="list-empty"><div>✧</div><strong>Пока тихо</strong><p>Найди друга и отправь первое сообщение.</p></div>'; return; }
-  list.innerHTML = entries.map(([id,c]) => '<button class="chat-item '+(activeChatId===id?"selected":"")+'" data-chat-id="'+esc(id)+'">'+avatarMarkup(c)+'<div class="chat-item-copy"><strong>'+esc(c.displayName||c.username||"Пользователь")+'</strong><small>'+esc(c.lastMessage||"Начните общение")+'</small></div><small class="chat-time">'+(c.lastMessageAt?timeLabel(c.lastMessageAt):"")+'</small></button>').join("");
+  list.innerHTML = entries.map(([id,c]) => {
+    const unread = id !== activeChatId && Number(c.lastMessageAt || 0) > Number(c.lastReadAt || 0) && !!c.lastMessageAt;
+    const preview = c.lastMessage || "Начните общение";
+    return '<button class="chat-item '+(activeChatId===id?"selected":"")+(unread?" chat-item-unread":"")+'" data-chat-id="'+esc(id)+'">'+avatarMarkup(c)+'<div class="chat-item-copy"><strong>'+esc(c.groupName||c.displayName||c.username||"Пользователь")+'</strong><small>'+esc(preview)+'</small></div><div class="chat-item-meta"><small class="chat-time">'+(c.lastMessageAt?timeLabel(c.lastMessageAt):"")+'</small>'+(unread?'<span class="unread-pill" aria-label="Непрочитанные сообщения">NEW</span>':'')+'</div></button>';
+  }).join("");
   list.querySelectorAll("[data-chat-id]").forEach(b => b.addEventListener("click", () => openChat(b.dataset.chatId, cachedChats[b.dataset.chatId])));
 }
 async function openChat(chatId, info) {
   activeChatId = chatId; activeChatUser = info || {}; renderChatListOnly();
+  if (stopReadReceipt) { stopReadReceipt(); stopReadReceipt = null; }
   const stage = $("#chatStage"); if (!stage) return;
   const isGroup = activeChatUser.isGroup === true;
+  let peerReadAt = 0;
+  let latestChatMessages = [];
+  let lastMarkedReadAt = 0;
+  const markChatRead = async (readAt) => {
+    if (!currentUser || !chatId || document.hidden) return;
+    const stamp = Number(readAt || Date.now());
+    if (stamp <= lastMarkedReadAt) return;
+    lastMarkedReadAt = stamp;
+    const updates = {};
+    updates["userChats/" + currentUser.uid + "/" + chatId + "/lastReadAt"] = stamp;
+    updates["chats/" + chatId + "/readAt/" + currentUser.uid] = stamp;
+    try { await update(ref(db), updates); } catch (error) { console.warn("NOVA read receipt:", error); }
+  };
   const chatTitle = activeChatUser.groupName || activeChatUser.displayName || activeChatUser.username || "Диалог";
   const chatSubtitle = isGroup ? ("Группа · " + Number(activeChatUser.memberCount || (activeChatUser.memberUids || []).length || 0) + " участников") : ("@" + (activeChatUser.username || "user"));
   stage.innerHTML = '<div class="conversation-head"><button id="mobileChatBack" class="mobile-chat-back" type="button" title="Назад к диалогам" aria-label="Назад к диалогам">←</button>'+avatarMarkup(activeChatUser)+'<div class="conversation-title"><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div><button id="desktopNotificationsToggle" class="icon-button conversation-notification-toggle" type="button" title="Включить уведомления" aria-label="Включить уведомления">🔔</button><button id="messageSearchToggle" class="icon-button conversation-search-toggle" type="button" title="Найти сообщение" aria-label="Найти сообщение">⌕</button>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Звонок</span></button><button id="videoCallBtn" class="call-start-button video-call-start-button" type="button" title="Начать видеозвонок">📹 <span>Видео</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageSearchBar" class="message-search-bar" hidden><span>⌕</span><input id="messageSearchInput" type="search" placeholder="Найти в переписке…" autocomplete="off"><span id="messageSearchCount" class="message-search-count"></span><button id="messageSearchClose" type="button" title="Закрыть поиск">×</button></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><button id="jumpToLatest" class="jump-to-latest" type="button" title="К последним сообщениям" aria-label="К последним сообщениям">↓<span>Новые сообщения</span></button><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><textarea id="messageInput" maxlength="4000" rows="1" autocomplete="off" placeholder="Напиши сообщение…" aria-label="Текст сообщения"></textarea><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
   const chatLayout = $(".chat-layout");
   if (chatLayout) chatLayout.classList.add("has-open-chat");
   const mobileBack = $("#mobileChatBack");
-  if (mobileBack) mobileBack.addEventListener("click", () => { activeChatId = null; activeChatUser = null; renderChatsPage(); });
+  if (mobileBack) mobileBack.addEventListener("click", () => { activeChatId = null; activeChatUser = null; if (stopReadReceipt) { stopReadReceipt(); stopReadReceipt = null; } renderChatsPage(); });
+  markChatRead(Date.now());
+  stopReadReceipt = onValue(ref(db, "chats/" + chatId + "/readAt"), snap => {
+    const readAt = snap.val() || {};
+    const members = activeChatUser.memberUids || [];
+    const peerUids = isGroup ? members.filter(uid => uid !== currentUser.uid) : (activeChatUser.withUid ? [activeChatUser.withUid] : []);
+    peerReadAt = peerUids.length ? Math.max(...peerUids.map(uid => Number(readAt[uid] || 0))) : 0;
+    const list = $("#messageList");
+    if (list) list.querySelectorAll("[data-message-created]").forEach(node => {
+      const stamp = Number(node.dataset.messageCreated || 0);
+      const state = node.querySelector(".message-read-state");
+      if (state) { const read = peerReadAt >= stamp && stamp > 0; state.textContent = read ? "✓✓ Прочитано" : "✓ Отправлено"; state.classList.toggle("is-read", read); }
+    });
+  }, error => console.warn("NOVA receipt sync:", error));
   let conversationSearchQuery = "";
   let firstMessageLoad = true;
   let previousMessageIds = new Set();
@@ -274,6 +308,7 @@ async function openChat(chatId, info) {
   if (stopMessages) stopMessages();
   stopMessages = onValue(ref(db, "messages/" + chatId), snap => {
     const messages = Object.entries(snap.val() || {}).sort((a,b)=>(a[1].createdAt||0)-(b[1].createdAt||0));
+    latestChatMessages = messages;
     if (firstMessageLoad) { previousMessageIds = new Set(messages.map(x => x[0])); }
     else {
       for (const [messageId, message] of messages) {
@@ -285,9 +320,17 @@ async function openChat(chatId, info) {
       previousMessageIds = new Set(messages.map(x => x[0]));
     }
     const box = $("#messageList"); if (!box) return;
+    const latestIncoming = messages.reduce((max, entry) => entry[1].senderUid !== currentUser.uid ? Math.max(max, Number(entry[1].createdAt || 0)) : max, 0);
+    if (!document.hidden) markChatRead(latestIncoming || Date.now());
     const oldTop = box.scrollTop;
     const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 140;
-    box.innerHTML = messages.length ? messages.map(x => x[1].type === "gift" ? renderGiftMessage(x[1]) : x[1].type === "media" ? renderMediaMessage(x[1]) : '<div class="message-row '+(x[1].senderUid===currentUser.uid?"mine":"")+'"><div class="message-bubble"><div>'+esc(x[1].text || "").replace(/\n/g,"<br>")+'</div><small>'+timeLabel(x[1].createdAt||Date.now())+(x[1].senderUid===currentUser.uid?" · Вы":"")+'</small></div></div>').join("") : '<div class="empty-messages"><span>✦</span><p>Это начало вашей истории. Напиши первым!</p></div>';
+    box.innerHTML = messages.length ? messages.map(x => {
+      const message = x[1], mine = message.senderUid === currentUser.uid, stamp = Number(message.createdAt || Date.now());
+      if (message.type === "gift") return renderGiftMessage(message);
+      if (message.type === "media") return renderMediaMessage(message);
+      const read = mine && peerReadAt >= stamp;
+      return '<div class="message-row '+(mine?"mine":"")+'"><div class="message-bubble"><div>'+esc(message.text || "").replace(/\n/g,"<br>")+'</div><small data-message-created="'+(mine?stamp:"")+'">'+timeLabel(stamp)+(mine?' · Вы <span class="message-read-state '+(read?"is-read":"")+'">'+(read?"✓✓ Прочитано":"✓ Отправлено")+'</span>':'')+'</small></div></div>';
+    }).join("") : '<div class="empty-messages"><span>✦</span><p>Это начало вашей истории. Напиши первым!</p></div>';
     if (firstMessageLoad || nearBottom) box.scrollTop = box.scrollHeight;
     else { box.scrollTop = oldTop; if (jumpButton) jumpButton.classList.add("visible","has-new"); }
     firstMessageLoad = false;
@@ -305,6 +348,8 @@ async function openChat(chatId, info) {
       updates["chats/"+id+"/updatedAt"] = now;
       updates["userChats/"+currentUser.uid+"/"+id+"/lastMessage"] = text.slice(0,120);
       updates["userChats/"+currentUser.uid+"/"+id+"/lastMessageAt"] = now;
+      updates["userChats/"+currentUser.uid+"/"+id+"/lastReadAt"] = now;
+      updates["chats/"+id+"/readAt/"+currentUser.uid] = now;
       const recipients = chat.isGroup && Array.isArray(chat.memberUids) ? chat.memberUids : (chat.withUid ? [chat.withUid] : []);
       for (const memberUid of recipients) {
         if (memberUid === currentUser.uid) continue;
