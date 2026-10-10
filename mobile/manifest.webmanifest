@@ -1,0 +1,15 @@
+{
+  "name": "NOVA Messenger",
+  "short_name": "NOVA",
+  "description": "Твои чаты, друзья и звонки в одном месте.",
+  "lang": "ru",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#10111c",
+  "theme_color": "#10111c",
+  "icons": [
+    { "src": "./nova-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
