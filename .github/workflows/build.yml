@@ -24,6 +24,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Prepare Windows app icon
+        run: |
+          npm install --no-save sharp png-to-ico
+          node scripts/create-icon.cjs
+
       - name: Build Windows application
         run: npm run dist
 
