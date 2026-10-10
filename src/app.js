@@ -694,7 +694,7 @@ async function openCameraCapture() {
   document.body.appendChild(layer);
   let stream = null, closed = false;
   const video = $("#cameraCaptureVideo"), status = $("#cameraCaptureStatus"), take = $("#cameraCaptureTake");
-  const close = () => { if (closed) return; closed = true; if (stream) stream.getTracks().forEach(track => track.stop()); layer.remove(); };
+  const close = () => { if (closed) return; closed = true; if (stream) stream.getTracks().forEach(track => track.stop()); if (onKey) document.removeEventListener("keydown", onKey); layer.remove(); };
   $("#cameraCaptureClose").addEventListener("click", close); $("#cameraCaptureCancel").addEventListener("click", close);
   layer.addEventListener("click", e => { if (e.target === layer) close(); });
   const onKey = e => { if (e.key === "Escape" && !closed) { close(); document.removeEventListener("keydown", onKey); } };
