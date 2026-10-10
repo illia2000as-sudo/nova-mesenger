@@ -454,7 +454,7 @@ input:not([type=checkbox]):not([type=radio]),textarea,select{transition:border-c
 .gift-product:hover .gift-product-emoji{animation:novaGiftPop .55s cubic-bezier(.2,.8,.2,1);}
 .gift-message-emoji.gift-bounce{animation:novaGiftEntrance .9s cubic-bezier(.18,.8,.25,1) both,novaGiftFloat 2.8s ease-in-out .9s infinite;}
 .gift-motion-rocket .gift-message-emoji{filter:drop-shadow(0 0 18px #8aa7ff);}
-.gift-motion-premium .gift-message-emoji,.gift-motion-gem .gift-message-emoji{filter:drop-shadow(0 0 18px #c4a1ff);}
+.gift-motion-portal .gift-message-emoji,.gift-motion-gem .gift-message-emoji{filter:drop-shadow(0 0 18px #c4a1ff);}
 .gift-motion-fireworks .gift-message-emoji{filter:drop-shadow(0 0 18px #ff9fcf);}
 @keyframes novaGiftPop{0%,100%{transform:scale(1) rotate(0)}35%{transform:scale(1.2) rotate(-8deg)}70%{transform:scale(1.08) rotate(7deg)}}
 @keyframes novaGiftEntrance{0%{opacity:0;transform:translateY(20px) scale(.55) rotate(-12deg)}65%{opacity:1;transform:translateY(-5px) scale(1.12) rotate(5deg)}100%{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
