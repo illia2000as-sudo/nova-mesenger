@@ -18,6 +18,30 @@ function createWindow() {
     }
   });
 
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    // Calls use an actual, separate Electron window rather than a modal in the chat.
+    if (url === "about:blank") {
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: {
+          width: 430,
+          height: 700,
+          minWidth: 350,
+          minHeight: 500,
+          title: "NOVA · Звонок",
+          autoHideMenuBar: true,
+          backgroundColor: "#090c14",
+          icon: path.join(__dirname, "build", "icon.ico"),
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+          }
+        }
+      };
+    }
+    return { action: "deny" };
+  });
+
   win.loadFile("src/index.html");
 }
 
