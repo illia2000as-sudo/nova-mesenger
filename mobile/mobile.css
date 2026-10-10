@@ -80,3 +80,11 @@ body.mobile-chat-open .chat-stage{display:flex!important;grid-column:1;grid-row:
   .conversation-head .icon-button,.conversation-head .call-start-button,.conversation-head .gift-open-button{width:30px!important;min-width:30px!important;height:33px!important}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* Make secondary pages scroll naturally on phones instead of clipping content */
+.content>.page-wrap{height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:18px 14px!important}
+.content .page-intro h3{font-size:22px!important;line-height:1.2}
+.content .page-intro p{font-size:12px!important;line-height:1.5}
+.content .page-intro{gap:12px!important;align-items:flex-start!important}
+.content .page-wrap input,.content .page-wrap textarea,.content .page-wrap select{font-size:16px!important;max-width:100%}
+.content .page-wrap button{touch-action:manipulation}
