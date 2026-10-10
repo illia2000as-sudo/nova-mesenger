@@ -15,7 +15,7 @@ A touch-first mobile web/PWA entry point that reuses the shared NOVA Firebase ap
 
 Serve the repository over HTTPS or from a local web server, then open `/mobile/`. Firebase Authentication, Realtime Database and Storage must be configured as described in the root README.
 
-For GitHub Pages, enable Pages for the repository and open the published `/mobile/` path. A PWA install prompt depends on browser/platform support.
+For GitHub Pages, open **Settings → Pages**, select **GitHub Actions** as the build/deployment source, then check the `Deploy NOVA Mobile to GitHub Pages` workflow. After deployment, open `https://<your-account>.github.io/<repository>/mobile/` on the phone. A PWA install prompt depends on browser/platform support.
 
 ## Important
 
