@@ -123,8 +123,9 @@ function showAuth() {
   });
 }
 function shell() {
-  document.body.innerHTML = '<aside class="sidebar"><div class="brand"><div class="brand-mark">✦</div><div><h1>NOVA</h1><small>MESSENGER</small></div></div><button class="nav active" data-page="chats"><span>▤</span> Сообщения <b id="chatBadge" class="badge" hidden>0</b></button><button class="nav" data-page="friends"><span>♧</span> Друзья</button><button class="nav" data-page="requests"><span>♡</span> Заявки <b id="requestBadge" class="badge" hidden>0</b></button><button class="nav" data-page="gifts"><span>🎁</span> Подарки</button><button class="nav premium-nav" data-page="premium"><span>✧</span> NOVA Premium <em>SOON</em></button><button class="nav" data-page="profile"><span>⚙</span> Мой профиль</button><div class="sidebar-bottom"><div class="profile-mini"><div class="avatar" id="sideAvatar">N</div><div class="profile-text"><strong id="sideName">Загрузка…</strong><small id="sideHandle">@nova</small></div><button class="icon-button" id="logoutBtn" title="Выйти">↪</button></div><div class="connection"><i></i> Подключено к NOVA</div></div></aside><main class="main-shell"><header class="topbar"><div><div class="eyebrow">ТВОЁ ПРОСТРАНСТВО</div><h2 id="pageTitle">Сообщения</h2></div><div class="topbar-right"><span class="currency-pill">✦ <strong id="currencyBalance">50</strong> NOVA</span><span class="online-dot"></span><span>В сети</span></div></header><section id="content" class="content"></section></main><div id="toast" class="toast"></div>';
+  document.body.innerHTML = '<aside class="sidebar"><div class="brand"><div class="brand-mark">✦</div><div><h1>NOVA</h1><small>MESSENGER</small></div></div><button class="nav active" data-page="chats"><span>▤</span> Сообщения <b id="chatBadge" class="badge" hidden>0</b></button><button class="nav" data-page="friends"><span>♧</span> Друзья</button><button class="nav" data-page="requests"><span>♡</span> Заявки <b id="requestBadge" class="badge" hidden>0</b></button><button class="nav" data-page="gifts"><span>🎁</span> Подарки</button><button class="nav premium-nav" data-page="premium"><span>✧</span> NOVA Premium <em>SOON</em></button><button class="nav" data-page="profile"><span>⚙</span> Мой профиль</button><div class="sidebar-bottom"><div class="profile-mini"><div class="avatar" id="sideAvatar">N</div><div class="profile-text"><strong id="sideName">Загрузка…</strong><small id="sideHandle">@nova</small></div><button class="icon-button" id="logoutBtn" title="Выйти">↪</button></div><div class="connection"><i></i> Подключено к NOVA</div></div></aside><main class="main-shell"><header class="topbar"><div><div class="eyebrow">ТВОЁ ПРОСТРАНСТВО</div><h2 id="pageTitle">Сообщения</h2></div><div class="topbar-right"><span class="currency-pill">✦ <strong id="currencyBalance">50</strong> NOVA</span><span class="online-dot"></span><span>В сети</span></div></header><section id="content" class="content"></section></main><nav class="mobile-bottom-nav" aria-label="Основная навигация"><button class="mobile-nav-item active" data-page="chats" type="button"><span>▤</span><small>Чаты</small><b id="mobileChatBadge" class="badge" hidden>0</b></button><button class="mobile-nav-item" data-page="friends" type="button"><span>♧</span><small>Друзья</small></button><button class="mobile-nav-item" data-page="requests" type="button"><span>♡</span><small>Заявки</small></button><button class="mobile-nav-item" data-page="gifts" type="button"><span>🎁</span><small>Подарки</small></button><button class="mobile-nav-item" data-page="profile" type="button"><span>⚙</span><small>Профиль</small></button></nav><div id="toast" class="toast"></div>';
   document.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => showPage(b.dataset.page)));
+  document.body.classList.remove("mobile-chat-open");
   document.addEventListener("keydown", e => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
       e.preventDefault();
@@ -153,8 +154,9 @@ function listenData() {
   stopUserChats = onValue(ref(db, "userChats/" + currentUser.uid), snap => {
     cachedChats = snap.val() || {};
     const unreadCount = Object.entries(cachedChats).filter(([id, chat]) => id !== activeChatId && Number(chat.lastMessageAt || 0) > Number(chat.lastReadAt || 0) && chat.lastMessageAt).length;
-    const badge = $("#chatBadge");
+    const badge = $("#chatBadge"), mobileBadge = $("#mobileChatBadge");
     if (badge) { badge.hidden = unreadCount === 0; badge.textContent = unreadCount > 99 ? "99+" : String(unreadCount); badge.title = unreadCount + " непрочитанных чатов"; }
+    if (mobileBadge) { mobileBadge.hidden = unreadCount === 0; mobileBadge.textContent = unreadCount > 9 ? "9+" : String(unreadCount); }
     if (currentPage === "chats") { if (activeChatId) renderChatListOnly(); else renderChatsPage(); }
   }, e => toast(errorText(e), true));
   stopCoins = onValue(ref(db, "users/" + currentUser.uid + "/coins"), snap => { currentProfile.coins = Number(snap.val() ?? 50); updateCurrencyDisplay(); if (currentPage === "gifts") renderGiftShopPage(); }, e => toast(errorText(e), true));
@@ -166,6 +168,7 @@ function listenData() {
   }, e => toast(errorText(e), true));
 }
 function showPage(page) {
+  document.body.classList.remove("mobile-chat-open");
   currentPage = page; activeChatId = null; activeChatUser = null;
   if (stopMessages) { stopMessages(); stopMessages = null; }
   document.querySelectorAll("[data-page]").forEach(b => b.classList.toggle("active", b.dataset.page === page));
@@ -200,7 +203,7 @@ function renderChatListOnly() {
   list.querySelectorAll("[data-chat-id]").forEach(b => b.addEventListener("click", () => openChat(b.dataset.chatId, cachedChats[b.dataset.chatId])));
 }
 async function openChat(chatId, info) {
-  activeChatId = chatId; activeChatUser = info || {}; renderChatListOnly();
+  activeChatId = chatId; activeChatUser = info || {}; document.body.classList.add("mobile-chat-open"); renderChatListOnly();
   if (stopReadReceipt) { stopReadReceipt(); stopReadReceipt = null; }
   const stage = $("#chatStage"); if (!stage) return;
   const isGroup = activeChatUser.isGroup === true;
@@ -223,7 +226,7 @@ async function openChat(chatId, info) {
   const chatLayout = $(".chat-layout");
   if (chatLayout) chatLayout.classList.add("has-open-chat");
   const mobileBack = $("#mobileChatBack");
-  if (mobileBack) mobileBack.addEventListener("click", () => { activeChatId = null; activeChatUser = null; if (stopReadReceipt) { stopReadReceipt(); stopReadReceipt = null; } renderChatsPage(); });
+  if (mobileBack) mobileBack.addEventListener("click", () => { activeChatId = null; activeChatUser = null; document.body.classList.remove("mobile-chat-open"); if (stopReadReceipt) { stopReadReceipt(); stopReadReceipt = null; } renderChatsPage(); });
   markChatRead(Date.now());
   stopReadReceipt = onValue(ref(db, "chats/" + chatId + "/readAt"), snap => {
     const readAt = snap.val() || {};
