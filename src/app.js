@@ -222,7 +222,7 @@ async function openChat(chatId, info) {
   };
   const chatTitle = activeChatUser.groupName || activeChatUser.displayName || activeChatUser.username || "Диалог";
   const chatSubtitle = isGroup ? ("Группа · " + Number(activeChatUser.memberCount || (activeChatUser.memberUids || []).length || 0) + " участников") : ("@" + (activeChatUser.username || "user"));
-  stage.innerHTML = '<div class="conversation-head"><button id="mobileChatBack" class="mobile-chat-back" type="button" title="Назад к диалогам" aria-label="Назад к диалогам">←</button>'+avatarMarkup(activeChatUser)+'<div class="conversation-title"><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div><button id="desktopNotificationsToggle" class="icon-button conversation-notification-toggle" type="button" title="Включить уведомления" aria-label="Включить уведомления">🔔</button><button id="messageSearchToggle" class="icon-button conversation-search-toggle" type="button" title="Найти сообщение" aria-label="Найти сообщение">⌕</button>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Звонок</span></button><button id="videoCallBtn" class="call-start-button video-call-start-button" type="button" title="Начать видеозвонок">📹 <span>Видео</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageSearchBar" class="message-search-bar" hidden><span>⌕</span><input id="messageSearchInput" type="search" placeholder="Найти в переписке…" autocomplete="off"><span id="messageSearchCount" class="message-search-count"></span><button id="messageSearchClose" type="button" title="Закрыть поиск">×</button></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><button id="jumpToLatest" class="jump-to-latest" type="button" title="К последним сообщениям" aria-label="К последним сообщениям">↓<span>Новые сообщения</span></button><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><textarea id="messageInput" maxlength="4000" rows="1" autocomplete="off" placeholder="Напиши сообщение…" aria-label="Текст сообщения"></textarea><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  stage.innerHTML = '<div class="conversation-head"><button id="mobileChatBack" class="mobile-chat-back" type="button" title="Назад к диалогам" aria-label="Назад к диалогам">←</button>'+avatarMarkup(activeChatUser)+'<div class="conversation-title"><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div><button id="desktopNotificationsToggle" class="icon-button conversation-notification-toggle" type="button" title="Включить уведомления" aria-label="Включить уведомления">🔔</button><button id="messageSearchToggle" class="icon-button conversation-search-toggle" type="button" title="Найти сообщение" aria-label="Найти сообщение">⌕</button>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Звонок</span></button><button id="videoCallBtn" class="call-start-button video-call-start-button" type="button" title="Начать видеозвонок">📹 <span>Видео</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageSearchBar" class="message-search-bar" hidden><span>⌕</span><input id="messageSearchInput" type="search" placeholder="Найти в переписке…" autocomplete="off"><span id="messageSearchCount" class="message-search-count"></span><button id="messageSearchClose" type="button" title="Закрыть поиск">×</button></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><button id="jumpToLatest" class="jump-to-latest" type="button" title="К последним сообщениям" aria-label="К последним сообщениям">↓<span>Новые сообщения</span></button><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><button id="cameraCaptureBtn" class="media-attach-button camera-capture-button" type="button" title="Сделать фото с камеры" aria-label="Сделать фото с камеры">📷</button><textarea id="messageInput" maxlength="4000" rows="1" autocomplete="off" placeholder="Напиши сообщение…" aria-label="Текст сообщения"></textarea><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
   const chatLayout = $(".chat-layout");
   if (chatLayout) chatLayout.classList.add("has-open-chat");
   const mobileBack = $("#mobileChatBack");
@@ -304,6 +304,8 @@ async function openChat(chatId, info) {
   const giftButton = $("#giftOpenBtn"); if (giftButton) giftButton.addEventListener("click", openGiftPicker);
   const groupManageButton = $("#groupManageBtn"); if (groupManageButton) groupManageButton.addEventListener("click", () => openManageGroup(chatId, activeChatUser));
   $("#mediaInput").addEventListener("change", async e => { const file = e.target.files && e.target.files[0]; e.target.value = ""; if (file) await sendMedia(file); });
+  const cameraCaptureButton = $("#cameraCaptureBtn");
+  if (cameraCaptureButton) cameraCaptureButton.addEventListener("click", openCameraCapture);
   const callButton = $("#audioCallBtn");
   if (callButton) callButton.addEventListener("click", () => {
     if (!callSystem) return toast("Система звонков ещё запускается.", true);
@@ -683,6 +685,38 @@ async function removeAvatar() {
     if(oldPath) deleteObject(storageRef(storage,oldPath)).catch(()=>{});
     toast("Аватар удалён.");
   } catch(error) { toast(errorText(error),true); }
+}
+async function openCameraCapture() {
+  if (!navigator.mediaDevices?.getUserMedia) return toast("Камера недоступна в этой среде. Проверь разрешения приложения.", true);
+  let layer = $("#cameraCaptureLayer"); if (layer) layer.remove();
+  layer = document.createElement("div"); layer.id = "cameraCaptureLayer"; layer.className = "gift-picker-layer camera-capture-layer";
+  layer.innerHTML = '<section class="gift-picker-card camera-capture-card" role="dialog" aria-modal="true" aria-labelledby="cameraCaptureTitle"><button class="gift-picker-close" id="cameraCaptureClose" type="button" aria-label="Закрыть">×</button><span class="eyebrow">NOVA CAMERA</span><h3 id="cameraCaptureTitle">Сделать фото</h3><p>Фото будет отправлено в открытый чат.</p><video id="cameraCaptureVideo" autoplay muted playsinline></video><div class="camera-capture-actions"><button class="small-button" id="cameraCaptureCancel" type="button">Отмена</button><button class="primary-button" id="cameraCaptureTake" type="button" disabled>Сделать снимок</button></div><p id="cameraCaptureStatus" class="camera-capture-status">Включаем камеру…</p></section>';
+  document.body.appendChild(layer);
+  let stream = null, closed = false;
+  const video = $("#cameraCaptureVideo"), status = $("#cameraCaptureStatus"), take = $("#cameraCaptureTake");
+  const close = () => { if (closed) return; closed = true; if (stream) stream.getTracks().forEach(track => track.stop()); layer.remove(); };
+  $("#cameraCaptureClose").addEventListener("click", close); $("#cameraCaptureCancel").addEventListener("click", close);
+  layer.addEventListener("click", e => { if (e.target === layer) close(); });
+  const onKey = e => { if (e.key === "Escape" && !closed) { close(); document.removeEventListener("keydown", onKey); } };
+  document.addEventListener("keydown", onKey);
+  take.addEventListener("click", async () => {
+    if (!video.videoWidth || !video.videoHeight) return toast("Камера ещё запускается. Попробуй через секунду.", true);
+    take.disabled = true; status.textContent = "Сохраняем фото…";
+    try {
+      const canvas = document.createElement("canvas"); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error("Не удалось создать фото.")), "image/jpeg", .9));
+      const file = new File([blob], "nova-camera-" + Date.now() + ".jpg", {type:"image/jpeg"});
+      close(); document.removeEventListener("keydown", onKey); await sendMedia(file);
+    } catch (error) { status.textContent = errorText(error); take.disabled = false; }
+  });
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:false});
+    if (closed) { stream.getTracks().forEach(track => track.stop()); return; }
+    video.srcObject = stream; await video.play(); take.disabled = false; status.textContent = "Камера готова";
+  } catch (error) {
+    status.textContent = errorText(error); toast("Не удалось включить камеру: " + errorText(error), true);
+  }
 }
 async function sendMedia(file) {
   if (!activeChatId) return toast("Сначала открой чат.",true);
