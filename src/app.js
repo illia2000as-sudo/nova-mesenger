@@ -70,6 +70,36 @@ function toast(message, error) {
   n.textContent = message; n.className = "toast show" + (error ? " error" : "");
   clearTimeout(n._timer); n._timer = setTimeout(() => n.classList.remove("show"), 3500);
 }
+let notificationAudioContext = null;
+function playIncomingMessageSound() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    if (!notificationAudioContext || notificationAudioContext.state === "closed") {
+      notificationAudioContext = new AudioContextClass();
+    }
+    const ctx = notificationAudioContext;
+    const play = () => {
+      if (ctx.state === "closed") return;
+      const now = ctx.currentTime;
+      [880, 660].forEach((frequency, index) => {
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, now + index * 0.11);
+        gain.gain.setValueAtTime(0.0001, now + index * 0.11);
+        gain.gain.exponentialRampToValueAtTime(0.075, now + index * 0.11 + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + index * 0.11 + 0.16);
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.start(now + index * 0.11);
+        oscillator.stop(now + index * 0.11 + 0.18);
+      });
+    };
+    if (ctx.state === "suspended") ctx.resume().then(play).catch(() => {});
+    else play();
+  } catch (error) { console.warn("NOVA notification sound:", error); }
+}
 function stopListeners() {
   if (stopUserChats) stopUserChats();
   if (stopMessages) stopMessages();
@@ -123,7 +153,7 @@ function showAuth() {
   });
 }
 function shell() {
-  document.body.innerHTML = '<aside class="sidebar"><div class="brand"><div class="brand-mark">✦</div><div><h1>NOVA</h1><small>MESSENGER</small></div></div><button class="nav active" data-page="chats"><span>▤</span> Сообщения <b id="chatBadge" class="badge" hidden>0</b></button><button class="nav" data-page="friends"><span>♧</span> Друзья</button><button class="nav" data-page="requests"><span>♡</span> Заявки <b id="requestBadge" class="badge" hidden>0</b></button><button class="nav" data-page="gifts"><span>🎁</span> Подарки</button><button class="nav premium-nav" data-page="premium"><span>✧</span> NOVA Premium <em>SOON</em></button><button class="nav" data-page="profile"><span>⚙</span> Мой профиль</button><div class="sidebar-bottom"><div class="profile-mini"><div class="avatar" id="sideAvatar">N</div><div class="profile-text"><strong id="sideName">Загрузка…</strong><small id="sideHandle">@nova</small></div><button class="icon-button" id="logoutBtn" title="Выйти">↪</button></div><div class="connection"><i></i> Подключено к NOVA</div></div></aside><main class="main-shell"><header class="topbar"><div><div class="eyebrow">ТВОЁ ПРОСТРАНСТВО</div><h2 id="pageTitle">Сообщения</h2></div><div class="topbar-right"><span class="currency-pill">✦ <strong id="currencyBalance">50</strong> NOVA</span><span class="online-dot"></span><span>В сети</span></div></header><section id="content" class="content"></section></main><nav class="mobile-bottom-nav" aria-label="Основная навигация"><button class="mobile-nav-item active" data-page="chats" type="button"><span>▤</span><small>Чаты</small><b id="mobileChatBadge" class="badge" hidden>0</b></button><button class="mobile-nav-item" data-page="friends" type="button"><span>♧</span><small>Друзья</small></button><button class="mobile-nav-item" data-page="requests" type="button"><span>♡</span><small>Заявки</small></button><button class="mobile-nav-item" data-page="gifts" type="button"><span>🎁</span><small>Подарки</small></button><button class="mobile-nav-item" data-page="profile" type="button"><span>⚙</span><small>Профиль</small></button></nav><div id="toast" class="toast"></div>';
+  document.body.innerHTML = '<aside class="sidebar"><div class="brand"><div class="brand-mark">✦</div><div><h1>NOVA</h1><small>MESSENGER</small></div></div><button class="nav active" data-page="chats"><span>▤</span> Сообщения <b id="chatBadge" class="badge" hidden>0</b></button><button class="nav" data-page="friends"><span>♧</span> Друзья</button><button class="nav" data-page="requests"><span>♡</span> Заявки <b id="requestBadge" class="badge" hidden>0</b></button><button class="nav premium-nav" data-page="premium"><span>✧</span> NOVA Premium <em>SOON</em></button><button class="nav" data-page="profile"><span>⚙</span> Мой профиль</button><div class="sidebar-bottom"><div class="profile-mini"><div class="avatar" id="sideAvatar">N</div><div class="profile-text"><strong id="sideName">Загрузка…</strong><small id="sideHandle">@nova</small></div><button class="icon-button" id="logoutBtn" title="Выйти">↪</button></div><div class="connection"><i></i> Подключено к NOVA</div></div></aside><main class="main-shell"><header class="topbar"><div><div class="eyebrow">ТВОЁ ПРОСТРАНСТВО</div><h2 id="pageTitle">Сообщения</h2></div><div class="topbar-right"><span class="currency-pill">✦ <strong id="currencyBalance">50</strong> NOVA</span><span class="online-dot"></span><span>В сети</span></div></header><section id="content" class="content"></section></main><nav class="mobile-bottom-nav" aria-label="Основная навигация"><button class="mobile-nav-item active" data-page="chats" type="button"><span>▤</span><small>Чаты</small><b id="mobileChatBadge" class="badge" hidden>0</b></button><button class="mobile-nav-item" data-page="friends" type="button"><span>♧</span><small>Друзья</small></button><button class="mobile-nav-item" data-page="requests" type="button"><span>♡</span><small>Заявки</small></button><button class="mobile-nav-item" data-page="profile" type="button"><span>⚙</span><small>Профиль</small></button></nav><div id="toast" class="toast"></div>';
   document.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => showPage(b.dataset.page)));
   document.body.classList.remove("mobile-chat-open");
   document.addEventListener("keydown", e => {
@@ -172,12 +202,11 @@ function showPage(page) {
   currentPage = page; activeChatId = null; activeChatUser = null;
   if (stopMessages) { stopMessages(); stopMessages = null; }
   document.querySelectorAll("[data-page]").forEach(b => b.classList.toggle("active", b.dataset.page === page));
-  const titles = {chats:"Сообщения",friends:"Друзья",requests:"Заявки в друзья",gifts:"Подарки NOVA",profile:"Мой профиль",premium:"NOVA Premium"};
+  const titles = {chats:"Сообщения",friends:"Друзья",requests:"Заявки в друзья",profile:"Мой профиль",premium:"NOVA Premium"};
   $("#pageTitle").textContent = titles[page] || "NOVA";
   if (page === "chats") renderChatsPage();
   else if (page === "friends") renderFriendsPage();
   else if (page === "requests") renderRequestsPage();
-  else if (page === "gifts") renderGiftShopPage();
   else if (page === "profile") renderProfilePage();
   else renderPremiumPage();
 }
@@ -323,7 +352,9 @@ async function openChat(chatId, info) {
     if (firstMessageLoad) { previousMessageIds = new Set(messages.map(x => x[0])); }
     else {
       for (const [messageId, message] of messages) {
-        if (previousMessageIds.has(messageId) || message.senderUid === currentUser.uid || !notificationsEnabled() || !document.hidden || !("Notification" in window) || Notification.permission !== "granted") continue;
+        if (previousMessageIds.has(messageId) || message.senderUid === currentUser.uid) continue;
+        playIncomingMessageSound();
+        if (!notificationsEnabled() || !document.hidden || !("Notification" in window) || Notification.permission !== "granted") continue;
         const sender = message.senderName || activeChatUser?.displayName || activeChatUser?.groupName || "Новое сообщение";
         const body = message.type === "gift" ? "Тебе отправили подарок 🎁" : message.type === "media" ? "Отправлено фото или видео" : String(message.text || "Новое сообщение").slice(0, 120);
         try { const notice = new Notification("NOVA · " + sender, {body, tag:"nova-" + chatId}); notice.onclick = () => { window.focus(); notice.close(); }; } catch (_) {}
