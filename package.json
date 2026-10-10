@@ -30,7 +30,8 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -41,6 +42,8 @@
     "files": [
       "main.js",
       "src/**/*",
+      "mobile/nova-icon.svg",
+      "build/icon.ico",
       "package.json"
     ]
   }
