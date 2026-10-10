@@ -21,6 +21,7 @@ const $ = (s) => document.querySelector(s);
 let currentUser = null, currentProfile = null, currentPage = "chats", activeChatId = null, activeChatUser = null;
 let stopUserChats = null, stopMessages = null, stopReadReceipt = null, stopRequests = null, stopCoins = null, stopOwnProfile = null;
 let callSystem = null;
+let stopChatSoundWatchers = {};
 let cachedChats = {}, cachedFriends = {}, cachedRequests = {};
 
 function esc(v) {
@@ -108,6 +109,8 @@ function stopListeners() {
   if (stopCoins) stopCoins();
   if (stopOwnProfile) stopOwnProfile();
   stopUserChats = stopMessages = stopReadReceipt = stopRequests = stopCoins = stopOwnProfile = null;
+  Object.values(stopChatSoundWatchers).forEach(stop => { try { stop(); } catch (_) {} });
+  stopChatSoundWatchers = {};
 }
 function showAuth() {
   stopListeners();
@@ -183,13 +186,36 @@ function listenData() {
   }, e => console.warn("NOVA profile sync:", e));
   stopUserChats = onValue(ref(db, "userChats/" + currentUser.uid), snap => {
     cachedChats = snap.val() || {};
+    const chatIds = new Set(Object.keys(cachedChats));
+    for (const [chatId, stop] of Object.entries(stopChatSoundWatchers)) {
+      if (!chatIds.has(chatId)) { try { stop(); } catch (_) {} delete stopChatSoundWatchers[chatId]; }
+    }
+    for (const chatId of chatIds) {
+      if (stopChatSoundWatchers[chatId]) continue;
+      let firstSnapshot = true;
+      let knownMessageIds = new Set();
+      stopChatSoundWatchers[chatId] = onValue(ref(db, "messages/" + chatId), messageSnap => {
+        const entries = Object.entries(messageSnap.val() || {});
+        if (firstSnapshot) {
+          knownMessageIds = new Set(entries.map(([messageId]) => messageId));
+          firstSnapshot = false;
+          return;
+        }
+        let receivedNewMessage = false;
+        for (const [messageId, message] of entries) {
+          if (!knownMessageIds.has(messageId) && message.senderUid !== currentUser.uid) receivedNewMessage = true;
+        }
+        knownMessageIds = new Set(entries.map(([messageId]) => messageId));
+        if (receivedNewMessage) playIncomingMessageSound();
+      }, error => console.warn("NOVA message sound watcher:", error));
+    }
     const unreadCount = Object.entries(cachedChats).filter(([id, chat]) => id !== activeChatId && Number(chat.lastMessageAt || 0) > Number(chat.lastReadAt || 0) && chat.lastMessageAt).length;
     const badge = $("#chatBadge"), mobileBadge = $("#mobileChatBadge");
     if (badge) { badge.hidden = unreadCount === 0; badge.textContent = unreadCount > 99 ? "99+" : String(unreadCount); badge.title = unreadCount + " непрочитанных чатов"; }
     if (mobileBadge) { mobileBadge.hidden = unreadCount === 0; mobileBadge.textContent = unreadCount > 9 ? "9+" : String(unreadCount); }
     if (currentPage === "chats") { if (activeChatId) renderChatListOnly(); else renderChatsPage(); }
   }, e => toast(errorText(e), true));
-  stopCoins = onValue(ref(db, "users/" + currentUser.uid + "/coins"), snap => { currentProfile.coins = Number(snap.val() ?? 50); updateCurrencyDisplay(); if (currentPage === "gifts") renderGiftShopPage(); }, e => toast(errorText(e), true));
+  stopCoins = onValue(ref(db, "users/" + currentUser.uid + "/coins"), snap => { currentProfile.coins = Number(snap.val() ?? 50); updateCurrencyDisplay(); }, e => toast(errorText(e), true));
   stopRequests = onValue(ref(db, "friendRequests/" + currentUser.uid), snap => {
     cachedRequests = snap.val() || {};
     const badge = $("#requestBadge");
@@ -353,7 +379,6 @@ async function openChat(chatId, info) {
     else {
       for (const [messageId, message] of messages) {
         if (previousMessageIds.has(messageId) || message.senderUid === currentUser.uid) continue;
-        playIncomingMessageSound();
         if (!notificationsEnabled() || !document.hidden || !("Notification" in window) || Notification.permission !== "granted") continue;
         const sender = message.senderName || activeChatUser?.displayName || activeChatUser?.groupName || "Новое сообщение";
         const body = message.type === "gift" ? "Тебе отправили подарок 🎁" : message.type === "media" ? "Отправлено фото или видео" : String(message.text || "Новое сообщение").slice(0, 120);
