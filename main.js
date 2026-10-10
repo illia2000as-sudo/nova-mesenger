@@ -1,5 +1,6 @@
 
 const { app, BrowserWindow, session } = require("electron");
+const path = require("node:path");
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -8,6 +9,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: "NOVA Messenger",
+    icon: path.join(__dirname, "build", "icon.ico"),
     backgroundColor: "#171923",
     autoHideMenuBar: true,
     webPreferences: {
