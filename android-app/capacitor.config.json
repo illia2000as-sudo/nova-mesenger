@@ -1,0 +1,12 @@
+{
+  "appId": "com.nova.messenger",
+  "appName": "NOVA Messenger",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
