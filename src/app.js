@@ -459,6 +459,7 @@ async function openChat(chatId, info) {
   }
 }
 async function openCreateGroup() {
+  let createdChatId = null;
   try {
     const snap = await get(ref(db, "friends/" + currentUser.uid));
     const friends = Object.values(snap.val() || {}).filter(f => f && f.uid && f.uid !== currentUser.uid);
@@ -481,6 +482,7 @@ async function openCreateGroup() {
         const members={[currentUser.uid]:true}; selected.forEach(uid=>members[uid]=true);
         const memberUids=Object.keys(members), now=Date.now(), chatRef=push(ref(db,"chats")), chatId=chatRef.key;
         await set(chatRef,{isGroup:true,groupName,members,memberCount:memberUids.length,createdBy:currentUser.uid,createdAt:now,updatedAt:now,lastMessage:"Группа создана"});
+        createdChatId = chatId;
         const updates={};
         for(const memberUid of memberUids){
           let profile=memberUid===currentUser.uid?currentProfile:friends.find(f=>f.uid===memberUid);
@@ -488,9 +490,17 @@ async function openCreateGroup() {
           updates["userChats/"+memberUid+"/"+chatId]={isGroup:true,groupName,displayName:groupName,username:"group",memberUids,memberCount:memberUids.length,lastMessage:"Группа создана",lastMessageAt:now,updatedAt:now,createdBy:currentUser.uid};
         }
         await update(ref(db),updates);
+        createdChatId = null;
         layer.remove(); toast("Группа «"+groupName+"» создана!"); showPage("chats");
         setTimeout(()=>openChat(chatId,{isGroup:true,groupName,displayName:groupName,username:"group",memberUids,memberCount:memberUids.length}),250);
-      } catch(err) { error.textContent=errorText(err); button.disabled=false; }
+      } catch(err) {
+        if (createdChatId) {
+          try { await remove(ref(db, "chats/" + createdChatId)); }
+          catch (cleanupError) { console.warn("NOVA group rollback failed:", cleanupError); }
+        }
+        error.textContent=errorText(err);
+        button.disabled=false;
+      }
     });
   } catch(e) { toast(errorText(e),true); }
 }
