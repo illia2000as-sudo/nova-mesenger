@@ -2,6 +2,10 @@
 
 name: Build NOVA Messenger
 
+concurrency:
+  group: nova-messenger-windows-build
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
