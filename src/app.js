@@ -705,6 +705,19 @@ function normalizeAvatarFile(file) {
   if (file.type === type) return file;
   return new File([file], file.name || ("nova-avatar" + (type === "video/mp4" ? ".mp4" : type === "video/webm" ? ".webm" : type === "image/png" ? ".png" : type === "image/webp" ? ".webp" : type === "image/gif" ? ".gif" : ".jpg")), {type, lastModified:file.lastModified || Date.now()});
 }
+async function syncAvatarCaches(avatarUrl, avatarType) {
+  const jobs = [];
+  for (const [chatId, chat] of Object.entries(cachedChats || {})) {
+    jobs.push(update(ref(db,"userChats/"+currentUser.uid+"/"+chatId),{avatarUrl,avatarType}));
+    if (chat.withUid) jobs.push(update(ref(db,"userChats/"+chat.withUid+"/"+chatId),{avatarUrl,avatarType}));
+  }
+  for (const friendUid of Object.keys(cachedFriends || {})) {
+    jobs.push(update(ref(db,"friends/"+friendUid+"/"+currentUser.uid),{avatarUrl,avatarType}));
+  }
+  const results = await Promise.allSettled(jobs);
+  const failures = results.filter(result => result.status === "rejected");
+  if (failures.length) console.warn("NOVA avatar cache sync: "+failures.length+" cache update(s) were blocked; profile itself is saved.");
+}
 async function saveAvatar(file) {
   if (!currentUser || !currentProfile) return toast("Сначала войди в NOVA.", true);
   let normalized;
@@ -730,14 +743,8 @@ async function saveAvatar(file) {
     updateSidebar();
     renderProfilePage();
 
-    // Cache updates are best-effort: security rules may correctly block writes to another user's data.
-    const safeUpdates = {};
-    for (const [chatId] of Object.entries(cachedChats || {})) {
-      safeUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarUrl"] = uploaded.url;
-      safeUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarType"] = fields.avatarType;
-    }
-    try { if (Object.keys(safeUpdates).length) await update(ref(db),safeUpdates); }
-    catch (syncError) { console.warn("NOVA avatar cache sync skipped:", syncError); }
+    // Refresh our own chat list and friends' cached cards independently; cache failures never undo the profile save.
+    await syncAvatarCaches(uploaded.url, fields.avatarType);
 
     if (oldPath && oldPath !== uploaded.path) deleteObject(storageRef(storage,oldPath)).catch(()=>{});
     toast("Аватар обновлён!");
@@ -758,13 +765,7 @@ async function removeAvatar() {
     updateSidebar();
     renderProfilePage();
 
-    const safeUpdates = {};
-    for (const [chatId] of Object.entries(cachedChats || {})) {
-      safeUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarUrl"] = null;
-      safeUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarType"] = null;
-    }
-    try { if (Object.keys(safeUpdates).length) await update(ref(db),safeUpdates); }
-    catch (syncError) { console.warn("NOVA avatar removal cache sync skipped:", syncError); }
+    await syncAvatarCaches(null, null);
     if (oldPath) deleteObject(storageRef(storage,oldPath)).catch(()=>{});
     toast("Аватар удалён.");
   } catch(error) { console.error("NOVA avatar removal failed:", error); toast(errorText(error),true); }
