@@ -1,0 +1,17 @@
+{
+  "name": "nova-messenger-android",
+  "version": "1.2.0",
+  "private": true,
+  "description": "Native Android wrapper for NOVA Messenger",
+  "scripts": {
+    "prepare:web": "node ../scripts/prepare-mobile.cjs",
+    "android:sync": "npm run prepare:web && cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.3",
+    "@capacitor/core": "^7.4.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3"
+  }
+}
