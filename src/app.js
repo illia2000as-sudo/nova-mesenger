@@ -692,55 +692,82 @@ function renderPremiumPage() {
     }
   });
 }
+function normalizeAvatarFile(file) {
+  const name = String(file?.name || "").toLowerCase();
+  const extensionType = name.endsWith(".jpg") || name.endsWith(".jpeg") ? "image/jpeg"
+    : name.endsWith(".png") ? "image/png"
+    : name.endsWith(".webp") ? "image/webp"
+    : name.endsWith(".gif") ? "image/gif"
+    : name.endsWith(".mp4") ? "video/mp4"
+    : name.endsWith(".webm") ? "video/webm" : "";
+  const type = ["image/jpeg","image/png","image/webp","image/gif","video/mp4","video/webm"].includes(file?.type) ? file.type : extensionType;
+  if (!type) throw new Error("Не удалось определить формат файла. Выбери JPG, PNG, WEBP, GIF, MP4 или WebM.");
+  if (file.type === type) return file;
+  return new File([file], file.name || ("nova-avatar" + (type === "video/mp4" ? ".mp4" : type === "video/webm" ? ".webm" : type === "image/png" ? ".png" : type === "image/webp" ? ".webp" : type === "image/gif" ? ".gif" : ".jpg")), {type, lastModified:file.lastModified || Date.now()});
+}
 async function saveAvatar(file) {
-  const isImage = ["image/jpeg","image/png","image/webp","image/gif"].includes(file.type);
-  const isVideo = ["video/mp4","video/webm"].includes(file.type);
+  if (!currentUser || !currentProfile) return toast("Сначала войди в NOVA.", true);
+  let normalized;
+  try { normalized = normalizeAvatarFile(file); }
+  catch (error) { return toast(error.message || "Неподдерживаемый файл.", true); }
+  const isImage = normalized.type.startsWith("image/");
+  const isVideo = normalized.type.startsWith("video/");
   if (!isImage && !isVideo) return toast("Поддерживаются JPG, PNG, WEBP, GIF, MP4 и WebM.", true);
-  if (file.size > (isVideo ? 20 : 8) * 1024 * 1024) return toast(isVideo ? "Видеоаватар должен быть не больше 20 МБ." : "Фото должно быть не больше 8 МБ.", true);
+  if (normalized.size === 0) return toast("Файл пустой. Выбери другое изображение.", true);
+  if (normalized.size > (isVideo ? 20 : 8) * 1024 * 1024) return toast(isVideo ? "Видеоаватар должен быть не больше 20 МБ." : "Фото должно быть не больше 8 МБ.", true);
   try {
-    if (isVideo) { const duration = await mediaDuration(file); if (!Number.isFinite(duration) || duration > 5.05) return toast("Видеоаватар должен длиться не больше 5 секунд.", true); }
+    if (isVideo) {
+      const duration = await mediaDuration(normalized);
+      if (!Number.isFinite(duration) || duration > 5.05) return toast("Видеоаватар должен длиться не больше 5 секунд.", true);
+    }
     toast("Загружаем аватар…");
-    const uploaded = await uploadMedia(file, "avatars/" + currentUser.uid);
+    const uploaded = await uploadMedia(normalized, "avatars/" + currentUser.uid);
     const oldPath = currentProfile.avatarPath;
     const fields = {avatarUrl:uploaded.url,avatarPath:uploaded.path,avatarType:isVideo?"video":"image",avatarUpdatedAt:Date.now()};
+    // The user's own profile is the source of truth. Save and show it before attempting any cache sync.
     await update(ref(db,"users/"+currentUser.uid),fields);
-    const syncUpdates = {};
-    for (const [chatId, chat] of Object.entries(cachedChats || {})) {
-      syncUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarUrl"] = uploaded.url;
-      syncUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarType"] = fields.avatarType;
-      if (chat.withUid) {
-        syncUpdates["userChats/"+chat.withUid+"/"+chatId+"/avatarUrl"] = uploaded.url;
-        syncUpdates["userChats/"+chat.withUid+"/"+chatId+"/avatarType"] = fields.avatarType;
-      }
+    Object.assign(currentProfile, fields);
+    updateSidebar();
+    renderProfilePage();
+
+    // Cache updates are best-effort: security rules may correctly block writes to another user's data.
+    const safeUpdates = {};
+    for (const [chatId] of Object.entries(cachedChats || {})) {
+      safeUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarUrl"] = uploaded.url;
+      safeUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarType"] = fields.avatarType;
     }
-    for (const friendUid of Object.keys(cachedFriends || {})) {
-      syncUpdates["friends/"+friendUid+"/"+currentUser.uid+"/avatarUrl"] = uploaded.url;
-      syncUpdates["friends/"+friendUid+"/"+currentUser.uid+"/avatarType"] = fields.avatarType;
-    }
-    if (Object.keys(syncUpdates).length) await update(ref(db),syncUpdates);
-    Object.assign(currentProfile,fields); updateSidebar(); renderProfilePage();
+    try { if (Object.keys(safeUpdates).length) await update(ref(db),safeUpdates); }
+    catch (syncError) { console.warn("NOVA avatar cache sync skipped:", syncError); }
+
     if (oldPath && oldPath !== uploaded.path) deleteObject(storageRef(storage,oldPath)).catch(()=>{});
     toast("Аватар обновлён!");
-  } catch(error) { toast(errorText(error),true); }
+  } catch(error) {
+    console.error("NOVA avatar upload failed:", error);
+    toast(errorText(error),true);
+  }
 }
 async function removeAvatar() {
-  if (!currentProfile.avatarUrl) return;
+  if (!currentUser || !currentProfile?.avatarUrl) return;
   try {
-    const oldPath=currentProfile.avatarPath;
+    const oldPath = currentProfile.avatarPath;
     await update(ref(db,"users/"+currentUser.uid),{avatarUrl:null,avatarPath:null,avatarType:null,avatarUpdatedAt:Date.now()});
-    const syncUpdates = {};
-    for (const [chatId, chat] of Object.entries(cachedChats || {})) {
-      syncUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarUrl"] = null;
-      syncUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarType"] = null;
-      if (chat.withUid) { syncUpdates["userChats/"+chat.withUid+"/"+chatId+"/avatarUrl"] = null; syncUpdates["userChats/"+chat.withUid+"/"+chatId+"/avatarType"] = null; }
+    currentProfile.avatarUrl = null;
+    currentProfile.avatarPath = null;
+    currentProfile.avatarType = null;
+    currentProfile.avatarUpdatedAt = Date.now();
+    updateSidebar();
+    renderProfilePage();
+
+    const safeUpdates = {};
+    for (const [chatId] of Object.entries(cachedChats || {})) {
+      safeUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarUrl"] = null;
+      safeUpdates["userChats/"+currentUser.uid+"/"+chatId+"/avatarType"] = null;
     }
-    for (const friendUid of Object.keys(cachedFriends || {})) { syncUpdates["friends/"+friendUid+"/"+currentUser.uid+"/avatarUrl"] = null; syncUpdates["friends/"+friendUid+"/"+currentUser.uid+"/avatarType"] = null; }
-    if (Object.keys(syncUpdates).length) await update(ref(db),syncUpdates);
-    currentProfile.avatarUrl=null; currentProfile.avatarPath=null; currentProfile.avatarType=null;
-    updateSidebar(); renderProfilePage();
-    if(oldPath) deleteObject(storageRef(storage,oldPath)).catch(()=>{});
+    try { if (Object.keys(safeUpdates).length) await update(ref(db),safeUpdates); }
+    catch (syncError) { console.warn("NOVA avatar removal cache sync skipped:", syncError); }
+    if (oldPath) deleteObject(storageRef(storage,oldPath)).catch(()=>{});
     toast("Аватар удалён.");
-  } catch(error) { toast(errorText(error),true); }
+  } catch(error) { console.error("NOVA avatar removal failed:", error); toast(errorText(error),true); }
 }
 async function openCameraCapture() {
   if (!navigator.mediaDevices?.getUserMedia) return toast("Камера недоступна в этой среде. Проверь разрешения приложения.", true);
