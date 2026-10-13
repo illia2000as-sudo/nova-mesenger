@@ -563,3 +563,32 @@ input:not([type=checkbox]):not([type=radio]),textarea,select{transition:border-c
 @keyframes profileLayerIn{from{opacity:0}to{opacity:1}}@keyframes profileCardIn{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}@keyframes profileGiftIn{from{opacity:0;transform:translateY(10px) scale(.94)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:620px){.public-profile-card{padding:24px 18px}.public-profile-name h3{font-size:20px}.public-profile-avatar{width:66px;height:66px;border-radius:20px}.person-actions{width:100%;justify-content:flex-start}.person-actions button{flex:1}.grant-actions{justify-content:flex-start}.grant-actions button{flex:1}}
 @media(prefers-reduced-motion:reduce){.public-profile-layer,.public-profile-card,.profile-gift-tile{animation:none!important}}
+
+
+/* Fix: responsive navigation must never occupy desktop chat width */
+.mobile-bottom-nav{display:none!important}
+@media(max-width:620px){
+  .mobile-bottom-nav{
+    position:fixed!important;z-index:80;left:12px;right:12px;bottom:12px;
+    display:flex!important;align-items:center;justify-content:space-around;gap:4px;
+    padding:8px;border:1px solid #ffffff18;border-radius:20px;
+    background:linear-gradient(135deg,#171b2bed,#10131ded);
+    box-shadow:0 14px 42px #0008, inset 0 1px #ffffff0b;
+    backdrop-filter:blur(18px)
+  }
+  .mobile-nav-item{
+    position:relative;flex:1;min-width:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:4px;padding:7px 2px;
+    border:1px solid transparent;border-radius:12px;background:transparent;
+    color:#a5aec8
+  }
+  .mobile-nav-item.active{
+    color:#f5f3ff;border-color:#a69aff2a;
+    background:linear-gradient(135deg,#9d8bff25,#6bdbed0d)
+  }
+  .mobile-nav-item>span{font-size:19px;line-height:1}
+  .mobile-nav-item small{font-size:9px;line-height:1.2}
+  .mobile-nav-item .badge{position:absolute;top:0;right:calc(50% - 22px);margin:0;padding:1px 5px;font-size:9px}
+  .main-shell{min-height:0}
+  .content{padding-bottom:78px;box-sizing:border-box}
+}
