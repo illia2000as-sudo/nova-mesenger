@@ -469,3 +469,24 @@ input:not([type=checkbox]):not([type=radio]),textarea,select{transition:border-c
 .camera-capture-status{min-height:18px;color:#a9b1ca;font-size:11px;margin:12px 0 0}
 .camera-capture-button{font-size:19px}
 @media(max-width:620px){.camera-capture-card{padding:20px 14px}.camera-capture-actions .primary-button{flex:1}}
+
+
+/* NOVA gift collection: distinct animated reactions for newly added gifts */
+.gift-motion-unicorn .gift-message-emoji{filter:drop-shadow(0 0 16px #ff9de2);animation:novaGiftRainbow 2.4s ease-in-out infinite alternate}
+.gift-motion-cookie .gift-message-emoji{animation:novaGiftWiggle 1.8s ease-in-out infinite}
+.gift-motion-cherry .gift-message-emoji{filter:drop-shadow(0 0 12px #ff668d);animation:novaGiftSwing 2s ease-in-out infinite}
+.gift-motion-lightning .gift-message-emoji{filter:drop-shadow(0 0 18px #ffe66d);animation:novaGiftZap 1.4s ease-in-out infinite}
+.gift-motion-trophy .gift-message-emoji{filter:drop-shadow(0 0 18px #ffce69);animation:novaGiftShine 2s ease-in-out infinite}
+.gift-motion-dragon .gift-message-emoji{filter:drop-shadow(0 0 16px #ff8c65);animation:novaGiftDragon 2.3s ease-in-out infinite}
+.gift-motion-moon .gift-message-emoji{filter:drop-shadow(0 0 18px #a9b8ff);animation:novaGiftFloat 2.4s ease-in-out infinite}
+.gift-motion-sakura .gift-message-emoji{filter:drop-shadow(0 0 15px #ffacd8);animation:novaGiftPetal 2.6s ease-in-out infinite}
+.gift-motion-music .gift-message-emoji{filter:drop-shadow(0 0 14px #8df3ff);animation:novaGiftMusic 1.3s ease-in-out infinite}
+@keyframes novaGiftRainbow{from{transform:translateY(0) rotate(-7deg);filter:drop-shadow(0 0 8px #ff9de2)}to{transform:translateY(-7px) rotate(7deg);filter:drop-shadow(0 0 22px #a7f4ff)}}
+@keyframes novaGiftWiggle{0%,100%{transform:rotate(0) scale(1)}25%{transform:rotate(-8deg) scale(1.04)}75%{transform:rotate(8deg) scale(1.04)}}
+@keyframes novaGiftSwing{0%,100%{transform:rotate(-9deg)}50%{transform:rotate(9deg) translateY(-3px)}}
+@keyframes novaGiftZap{0%,100%{transform:scale(1);filter:drop-shadow(0 0 7px #ffe66d)}50%{transform:scale(1.13);filter:drop-shadow(0 0 24px #fff39b)}}
+@keyframes novaGiftShine{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-6px) rotate(4deg);filter:drop-shadow(0 0 22px #ffce69)}}
+@keyframes novaGiftDragon{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-8px) rotate(4deg) scale(1.06)}}
+@keyframes novaGiftPetal{0%,100%{transform:translateY(0) rotate(-8deg)}50%{transform:translateY(-7px) rotate(8deg)}}
+@keyframes novaGiftMusic{0%,100%{transform:translateY(0) rotate(-5deg)}25%{transform:translateY(-5px) rotate(5deg)}50%{transform:translateY(0) rotate(-5deg)}75%{transform:translateY(-4px) rotate(5deg)}}
+@media(prefers-reduced-motion:reduce){.gift-motion-unicorn .gift-message-emoji,.gift-motion-cookie .gift-message-emoji,.gift-motion-cherry .gift-message-emoji,.gift-motion-lightning .gift-message-emoji,.gift-motion-trophy .gift-message-emoji,.gift-motion-dragon .gift-message-emoji,.gift-motion-moon .gift-message-emoji,.gift-motion-sakura .gift-message-emoji,.gift-motion-music .gift-message-emoji{animation:none!important}}
