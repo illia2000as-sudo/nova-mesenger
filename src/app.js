@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, deleteUser } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, onAuthStateChanged, signOut, updateProfile, deleteUser } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 import { getDatabase, ref, set, get, onValue, push, update, remove, runTransaction } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-storage.js";
 import { createCallSystem } from "./calls.js";
@@ -118,8 +118,31 @@ function stopListeners() {
 }
 function showAuth() {
   stopListeners();
-  document.body.innerHTML = '<main class="auth-screen"><div class="auth-glow"></div><section class="auth-card"><div class="brand auth-brand"><div class="brand-mark">✦</div><div><h1>NOVA</h1><small>MESSENGER</small></div></div><div class="auth-heading"><span class="eyebrow">ТВОЯ СВЯЗЬ. ТВОИ ЛЮДИ.</span><h2 id="authTitle">С возвращением</h2><p id="authSub">Войди, чтобы продолжить общение.</p></div><form id="authForm"><div id="usernameWrap" hidden><label for="usernameInput">Имя пользователя</label><input id="usernameInput" maxlength="24" autocomplete="username" placeholder="например, nova_player"><small class="field-hint">3–24 символа: латиница, цифры и _</small></div><label for="emailInput">Электронная почта</label><input id="emailInput" type="email" autocomplete="email" required placeholder="you@example.com"><label for="passwordInput">Пароль</label><input id="passwordInput" type="password" minlength="6" autocomplete="current-password" required placeholder="Минимум 6 символов"><p id="authMessage" role="status"></p><button class="primary-button full-button" id="authSubmit" type="submit">Войти в NOVA <span>→</span></button></form><button class="auth-switch" id="authSwitch" type="button">Нет аккаунта? <strong>Создать</strong></button><p class="auth-foot">Сообщения синхронизируются через Firebase.</p></section></main>';
+  document.body.innerHTML = '<main class="auth-screen"><div class="auth-glow"></div><section class="auth-card"><div class="brand auth-brand"><div class="brand-mark">✦</div><div><h1>NOVA</h1><small>MESSENGER</small></div></div><div class="auth-heading"><span class="eyebrow">ТВОЯ СВЯЗЬ. ТВОИ ЛЮДИ.</span><h2 id="authTitle">С возвращением</h2><p id="authSub">Войди, чтобы продолжить общение.</p></div><form id="authForm"><div id="usernameWrap" hidden><label for="usernameInput">Имя пользователя</label><input id="usernameInput" maxlength="24" autocomplete="username" placeholder="например, nova_player"><small class="field-hint">3–24 символа: латиница, цифры и _</small></div><label for="emailInput">Электронная почта</label><input id="emailInput" type="email" autocomplete="email" required placeholder="you@example.com"><label for="passwordInput">Пароль</label><input id="passwordInput" type="password" minlength="6" autocomplete="current-password" required placeholder="Минимум 6 символов"><p id="authMessage" role="status"></p><button class="primary-button full-button" id="authSubmit" type="submit">Войти в NOVA <span>→</span></button></form><button class="auth-switch" id="authSwitch" type="button">Нет аккаунта? <strong>Создать</strong></button><button class="auth-switch" id="forgotPasswordBtn" type="button">Забыли пароль?</button><p class="auth-foot">Сообщения синхронизируются через Firebase.</p></section></main>';
   let registering = false;
+  $("#forgotPasswordBtn").addEventListener("click", async () => {
+    const email = $("#emailInput").value.trim();
+    if (!email) {
+      $("#authMessage").textContent = "Сначала введи email — на него отправим ссылку для сброса пароля.";
+      $("#authMessage").className = "error-text";
+      $("#emailInput").focus();
+      return;
+    }
+    const resetButton = $("#forgotPasswordBtn");
+    resetButton.disabled = true;
+    $("#authMessage").textContent = "Отправляем письмо для восстановления…";
+    $("#authMessage").className = "";
+    try {
+      await sendPasswordResetEmail(auth, email);
+      $("#authMessage").textContent = "Если аккаунт с таким email существует, письмо для сброса пароля отправлено. Проверь «Спам» тоже.";
+      $("#authMessage").className = "";
+    } catch (error) {
+      $("#authMessage").textContent = errorText(error);
+      $("#authMessage").className = "error-text";
+    } finally {
+      resetButton.disabled = false;
+    }
+  });
   $("#authSwitch").addEventListener("click", () => {
     registering = !registering;
     $("#usernameWrap").hidden = !registering;
@@ -146,6 +169,12 @@ function showAuth() {
           if (!claim.committed) throw new Error("Этот ник уже занят. Выбери другой.");
           await updateProfile(credential.user, {displayName: username});
           await set(ref(db, "users/" + credential.user.uid), {uid:credential.user.uid, username, usernameLower:username, displayName:username, bio:"Привет! Я в NOVA.", coins:50, createdAt:Date.now()});
+          // Firebase sends the verification email; customize its sender and wording in Authentication → Templates.
+          try {
+            await sendEmailVerification(credential.user);
+          } catch (mailError) {
+            console.warn("NOVA verification email could not be sent:", mailError);
+          }
         } catch (profileError) {
           try { await deleteUser(credential.user); } catch (_) {}
           throw profileError;
