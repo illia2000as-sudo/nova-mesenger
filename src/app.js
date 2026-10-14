@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, deleteUser } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, deleteUser } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
 import { getDatabase, ref, set, get, onValue, push, update, remove, runTransaction } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-storage.js";
 import { createCallSystem } from "./calls.js";
@@ -14,7 +14,11 @@ const firebaseConfig = {
   appId: "1:506210477687:web:4153028a41b7f047214872"
 };
 const firebaseApp = initializeApp(firebaseConfig);
-const auth = getAuth(firebaseApp);
+// Explicit persistent auth for Android WebView/Capacitor and desktop browsers.
+// Prefer IndexedDB, fall back to localStorage, then in-memory only if the device blocks both.
+const auth = initializeAuth(firebaseApp, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence]
+});
 const db = getDatabase(firebaseApp);
 const storage = getStorage(firebaseApp);
 const $ = (s) => document.querySelector(s);
