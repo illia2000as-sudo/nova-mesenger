@@ -67,7 +67,7 @@ async function fetchLatestRelease() {
     notes: release.body || "Обновление NOVA Messenger",
     url: release.html_url || GITHUB_URL,
     installed: Boolean(installedPath),
-    updateAvailable: !installedPath || installedTag !== release.tag_name,
+    // If Messenger already exists but this launcher predates the local marker file,\n    // adopt the installed copy instead of reinstalling it on every startup.\n    updateAvailable: !installedPath || (Boolean(installedTag) && installedTag !== release.tag_name),
     installedTag
   };
 }
