@@ -18,7 +18,7 @@
   <noscript><p style="padding:24px;color:white">Для работы NOVA включи JavaScript в браузере.</p></noscript>
   <script type="module" src="../src/app.js"></script>
   <script>
-    if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    if ("serviceWorker" in navigator && location.protocol.startsWith("http") && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
       window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(() => {}));
     }
   </script>
