@@ -592,3 +592,15 @@ input:not([type=checkbox]):not([type=radio]),textarea,select{transition:border-c
   .main-shell{min-height:0}
   .content{padding-bottom:78px;box-sizing:border-box}
 }
+
+
+/* Guest mode: clear, responsive entry point and registration prompt */
+.guest-mode-button{display:flex;align-items:center;gap:13px;width:100%;margin-top:13px;padding:14px 15px;border:1px solid #7775ff65;border-radius:14px;background:linear-gradient(110deg,#8278ff18,#4edac50b);color:#f4f3ff;text-align:left;cursor:pointer;transition:border-color .18s,transform .18s}
+.guest-mode-button:hover{border-color:#a49dff;transform:translateY(-1px)}
+.guest-mode-button>span:first-child{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border-radius:12px;background:#8278ff20;color:#bcb7ff;font-size:22px}
+.guest-mode-button>span:nth-child(2){display:flex;flex-direction:column;gap:4px;min-width:0}.guest-mode-button strong{font-size:12px}.guest-mode-button small{font-size:10px;color:#9ca4bf}
+.guest-mode-button .guest-arrow{margin-left:auto;color:#aaa5ff;font-size:20px}.guest-mode-button:disabled{opacity:.55;cursor:wait;transform:none}
+.guest-register-topbar{padding:9px 13px;border:1px solid #817aff70;border-radius:11px;background:#8278ff20;color:#e5e2ff;font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer}.guest-register-topbar:hover{background:#8278ff35}
+.guest-register-card form{display:flex;flex-direction:column;gap:10px}.guest-register-card label{margin-top:7px;color:#c5c9dc;font-size:11px}.guest-register-card input{width:100%;padding:13px;border:1px solid #373a50;border-radius:11px;background:#11121c;color:white;outline:0;font-size:13px}.guest-register-card input:focus{border-color:#8584ff}.guest-register-card h3{margin:13px 0 8px}.guest-register-card>p{font-size:12px;line-height:1.6;color:#aeb5cc}
+@media(max-width:720px){.guest-register-topbar{padding:8px 9px;font-size:10px}.topbar-right{gap:7px}}
+@media(max-width:620px){.guest-register-topbar{max-width:112px;white-space:normal;line-height:1.2}.guest-mode-button{padding:12px}.guest-register-card{padding:24px 18px}}
