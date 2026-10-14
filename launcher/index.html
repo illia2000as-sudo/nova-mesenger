@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self';">
+  <title>NOVA Launcher</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <div class="topline"><span class="logo">✦</span><span>NOVA</span><span class="sub">LAUNCHER</span><span class="spacer"></span><span class="live"><i></i> GITHUB UPDATE</span></div>
+    <section class="hero">
+      <div class="orb orb-a"></div><div class="orb orb-b"></div>
+      <div class="mark">N</div>
+      <p class="eyebrow">MESSENGER · DESKTOP</p>
+      <h1>Твоя NOVA.<br><span>Всегда обновлена.</span></h1>
+      <p class="description">Лаунчер сам проверяет GitHub, скачивает свежую сборку и запускает мессенджер.</p>
+      <div class="status-card">
+        <div class="status-row"><span class="pulse"></span><span id="status">Подключаемся к GitHub…</span></div>
+        <div class="progress"><div id="bar"></div></div>
+        <div class="status-bottom"><span id="percent">АВТООБНОВЛЕНИЕ</span><span id="channel">STABLE CHANNEL</span></div>
+      </div>
+      <div class="actions">
+        <button id="launch" class="primary"><span>✦</span> Запустить / обновить NOVA</button>
+        <button id="check" class="secondary">Проверить снова</button>
+      </div>
+    </section>
+    <footer><span>✦ NOVA MESSENGER</span><span id="version">Синхронизация с GitHub Releases</span><button id="github">Открыть GitHub ↗</button></footer>
+  </main>
+  <script src="renderer.js"></script>
+</body>
+</html>
