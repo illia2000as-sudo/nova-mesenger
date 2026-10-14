@@ -1,6 +1,4 @@
-
-
-name: Build NOVA Messenger
+name: Build NOVA Messenger and Launcher
 
 concurrency:
   group: nova-messenger-windows-build
@@ -12,20 +10,23 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
-
     steps:
-      - name: Download source code
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
-      - name: Install dependencies
+      - name: Install messenger dependencies
         run: npm install
 
       - name: Prepare Windows app icon
@@ -33,12 +34,50 @@ jobs:
           npm install --no-save sharp png-to-ico
           node scripts/create-icon.cjs
 
-      - name: Build Windows application
+      - name: Build NOVA Messenger installer
         run: npm run dist
 
-      - name: Upload installer
+      - name: Give installer a stable download name
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path dist -Filter *.exe | Select-Object -First 1
+          if (-not $installer) { throw "electron-builder did not produce an EXE installer." }
+          Move-Item -LiteralPath $installer.FullName -Destination "dist/NOVA-Messenger-Setup.exe" -Force
+
+      - name: Install launcher dependencies
+        working-directory: launcher
+        run: npm install
+
+      - name: Build portable NOVA Launcher
+        working-directory: launcher
+        run: npm run dist
+
+      - name: Verify build outputs
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/NOVA-Messenger-Setup.exe")) { throw "Messenger installer missing." }
+          if (-not (Test-Path "launcher/dist/NOVA-Launcher.exe")) { throw "Launcher EXE missing." }
+
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NOVA-Messenger-Windows
-          path: dist/*.exe
+          name: NOVA-Windows-Latest
+          path: |
+            dist/NOVA-Messenger-Setup.exe
+            launcher/dist/NOVA-Launcher.exe
           if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish latest build to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: NOVA Messenger build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist/NOVA-Messenger-Setup.exe
+            launcher/dist/NOVA-Launcher.exe
