@@ -1,0 +1,41 @@
+{
+  "name": "nova-launcher",
+  "version": "1.0.0",
+  "description": "Automatic GitHub updater and launcher for NOVA Messenger",
+  "main": "main.js",
+  "author": "NOVA",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable --publish never"
+  },
+  "devDependencies": {
+    "electron": "^38.2.0",
+    "electron-builder": "^26.2.0"
+  },
+  "build": {
+    "appId": "com.nova.launcher",
+    "productName": "NOVA Launcher",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "artifactName": "NOVA-Launcher.exe",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "style.css",
+      "package.json"
+    ]
+  }
+}
