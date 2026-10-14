@@ -5,25 +5,7 @@
     "users": {
       ".read": "auth != null",
       "$uid": {
-        ".write": "auth != null && auth.uid === $uid && ((data.exists() && newData.child('username').val() === data.child('username').val() && root.child('users').child(auth.uid).child('username').val() === 'nova_infinity') || (data.exists() && newData.child('username').val() === data.child('username').val() && newData.child('premium').val() === data.child('premium').val() && newData.child('premiumGiftedBy').val() === data.child('premiumGiftedBy').val() && newData.child('premiumGiftedAt').val() === data.child('premiumGiftedAt').val() && newData.child('sponsor').val() === data.child('sponsor').val() && newData.child('sponsorGrantedBy').val() === data.child('sponsorGrantedBy').val() && newData.child('sponsorGrantedAt').val() === data.child('sponsorGrantedAt').val()) || (!data.exists() && newData.child('username').val() !== 'nova_infinity' && !newData.child('premium').exists() && !newData.child('premiumGiftedBy').exists() && !newData.child('premiumGiftedAt').exists() && !newData.child('sponsor').exists() && !newData.child('sponsorGrantedBy').exists() && !newData.child('sponsorGrantedAt').exists()))",
-        "premium": {
-          ".write": "auth != null && root.child('users').child(auth.uid).child('username').val() === 'nova_infinity'"
-        },
-        "premiumGiftedBy": {
-          ".write": "auth != null && root.child('users').child(auth.uid).child('username').val() === 'nova_infinity'"
-        },
-        "premiumGiftedAt": {
-          ".write": "auth != null && root.child('users').child(auth.uid).child('username').val() === 'nova_infinity'"
-        },
-        "sponsor": {
-          ".write": "auth != null && root.child('users').child(auth.uid).child('username').val() === 'nova_infinity'"
-        },
-        "sponsorGrantedBy": {
-          ".write": "auth != null && root.child('users').child(auth.uid).child('username').val() === 'nova_infinity'"
-        },
-        "sponsorGrantedAt": {
-          ".write": "auth != null && root.child('users').child(auth.uid).child('username').val() === 'nova_infinity'"
-        }
+        ".write": "auth != null && auth.uid === $uid && ((!data.exists() && newData.child('username').isString() && newData.child('username').val() !== 'nova_infinity' && !newData.child('premium').exists() && !newData.child('premiumGiftedBy').exists() && !newData.child('premiumGiftedAt').exists() && !newData.child('sponsor').exists() && !newData.child('sponsorGrantedBy').exists() && !newData.child('sponsorGrantedAt').exists()) || (data.exists() && newData.child('username').val() === data.child('username').val() && newData.child('premium').val() === data.child('premium').val() && newData.child('premiumGiftedBy').val() === data.child('premiumGiftedBy').val() && newData.child('premiumGiftedAt').val() === data.child('premiumGiftedAt').val() && newData.child('sponsor').val() === data.child('sponsor').val() && newData.child('sponsorGrantedBy').val() === data.child('sponsorGrantedBy').val() && newData.child('sponsorGrantedAt').val() === data.child('sponsorGrantedAt').val()) || (data.exists() && root.child('users').child(auth.uid).child('username').val() === 'nova_infinity' && newData.child('username').val() === data.child('username').val()))"
       }
     },
     "usernameIndex": {
