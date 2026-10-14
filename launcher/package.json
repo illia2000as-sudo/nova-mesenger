@@ -27,7 +27,8 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "icon": "../build/icon.ico"
     },
     "artifactName": "NOVA-Launcher.exe",
     "files": [
