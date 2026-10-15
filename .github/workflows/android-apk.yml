@@ -49,12 +49,12 @@ jobs:
         working-directory: android-app
         run: npx cap add android
 
-      - name: Add Android microphone and camera permissions
-        run: node scripts/patch-android-manifest.cjs
-
       - name: Sync app assets and plugins
         working-directory: android-app
         run: npx cap sync android
+
+      - name: Add Android microphone and camera permissions
+        run: node scripts/patch-android-manifest.cjs
 
       - name: Build debug APK
         working-directory: android-app/android
