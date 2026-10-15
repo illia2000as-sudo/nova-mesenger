@@ -7,6 +7,8 @@
 1. Открой Firebase Console и выбери проект `nova-729f3`.
 2. Открой **Authentication → Sign-in method**.
 3. Включи **Email/Password** и сохрани изменения.
+4. Для гостевого режима также открой **Anonymous** и включи его.
+5. В **Authentication → Settings → Authorized domains** проверь, что присутствует `localhost` для Android Capacitor WebView.
 
 ## 2. Опубликовать правила базы
 
@@ -63,3 +65,23 @@ The app now supports profile photos (JPG, PNG, WEBP, GIF), looping video avatars
 4. Rebuild the Windows app from GitHub Actions and test uploads while signed in.
 
 These are starter rules, not production security. They allow any signed-in account to read media stored in these paths, because the current client rules do not verify chat membership against Realtime Database. Before inviting public users, move media access to a trusted backend and enforce chat membership there. Firebase Storage may also require a billing plan depending on project configuration.
+
+
+## NOVA Android: регистрация, сообщения и звонки
+
+**Важно:** правила Realtime Database из GitHub не публикуются в Firebase автоматически. После обновления открой Firebase Console → Realtime Database → Rules, вставь весь файл `docs/firebase-database-rules.json` и нажми **Publish**. Эти правила разрешают гостям (анонимным Firebase-пользователям) отправлять обычный текст и звонить, но только в чатах, где их UID есть в `chats/{chatId}/members`.
+
+Проверь, что в Firebase Console → Authentication → Sign-in method включены:
+- **Email/Password** — регистрация и обычный вход.
+- **Anonymous** — гостевой вход.
+
+В Android-версии необходимо проверять отдельно:
+1. Удалить старую тестовую APK и установить свежий артефакт из GitHub Actions.
+2. Открыть настройки Android → Приложения → NOVA Messenger → Разрешения и разрешить микрофон; для видеозвонков — камеру.
+3. Проверить, что на телефоне есть интернет и обновлён Android System WebView/Chrome.
+4. Проверить регистрацию, вход, поиск пользователя, заявку в друзья, принятие заявки и отправку текста между двумя аккаунтами.
+5. Проверить исходящий и входящий звонок между двумя реальными устройствами.
+
+Если регистрация выдаёт ошибку `auth/operation-not-allowed`, провайдер Email/Password выключен. Если ошибка `auth/unauthorized-domain`, проверь Authorized domains. Если текст не отправляется с `PERMISSION_DENIED`, повторно опубликуй правила Realtime Database и убедись, что оба участника действительно записаны в `chats/{chatId}/members`. Если звонок не получает микрофон, проверь Android-разрешения и логи WebView.
+
+Сборка APK со статусом Success подтверждает только сборку файла, а не успешность регистрации, чатов или звонков на устройстве.
