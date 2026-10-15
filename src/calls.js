@@ -319,6 +319,9 @@ export function createCallSystem(api) {
       stopRingtone();
       activeCallType = incoming.callType === "video" ? "video" : "audio";
       showLayer(incoming.callerName, activeCallType === "video" ? "Подключаем камеру и микрофон…" : "Подключаем микрофон…");
+      if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+        throw new Error("Android WebView не предоставил доступ к микрофону. Установи свежий APK NOVA и обнови Android System WebView.");
+      }
       localStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: activeCallType === "video" ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } : false
