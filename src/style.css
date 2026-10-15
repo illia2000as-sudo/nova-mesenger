@@ -659,3 +659,75 @@ button,.chat-item,.nav,.person-card,.plan-card,.helper-card{transition:backgroun
 }
 @media(max-width:390px){.topbar{padding-left:11px;padding-right:11px}.topbar h2{font-size:17px}.guest-register-topbar{max-width:94px;font-size:9px}.chat-item{gap:8px;padding:11px 7px}.chat-item .avatar{width:40px;height:40px}.message-composer{gap:6px}}
 @media(prefers-reduced-motion:reduce){.brand-mark:after,.empty-orbit{animation:none!important}button,.chat-item,.nav,.person-card,.plan-card,.helper-card,.message-bubble{transition:none!important}}
+
+
+/* NOVA Interface Finish — avatar-matched neon star / balanced desktop layout */
+:root{
+  --nova-violet:#8584ff;
+  --nova-blue:#61e8f3;
+  --nova-lilac:#c1a0ff;
+  --nova-surface:#171925;
+}
+body{background:var(--bg);color:var(--text)}
+.sidebar{position:relative;isolation:isolate;overflow:hidden}
+.sidebar:before{content:"";position:absolute;z-index:-1;top:-110px;left:-100px;width:270px;height:270px;border-radius:50%;background:radial-gradient(circle,#8178ff16,transparent 68%);pointer-events:none}
+.brand{padding-bottom:27px}
+.brand-mark{background:linear-gradient(140deg,var(--nova-blue) 0%,var(--nova-violet) 56%,var(--nova-lilac) 100%);color:#10111b;text-shadow:0 1px 0 #ffffff55;box-shadow:0 0 0 1px #ffffff12,0 8px 30px #827cff30}
+.brand h1{letter-spacing:3.5px}
+.brand small{letter-spacing:3.2px}
+.main-shell{min-width:0;overflow:hidden}
+.topbar{gap:16px}
+.topbar>div:first-child{min-width:0}
+.topbar h2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar-right{gap:12px;flex-shrink:0}
+.currency-pill{border:1px solid #aaa0ff25;background:linear-gradient(110deg,#8584ff12,#61e8f309);box-shadow:inset 0 1px #ffffff06}
+.content{min-width:0;overscroll-behavior:contain}
+.chat-layout{grid-template-columns:minmax(245px, min(30vw, 330px)) minmax(0,1fr)}
+.chat-list-panel,.chat-stage{min-width:0}
+.chat-list-panel{background:linear-gradient(180deg,#171824,#141520)}
+.panel-heading{gap:10px}
+.panel-heading>div{min-width:0}
+.chat-search{min-width:0}
+.chat-stage{position:relative}
+.empty-orbit,.welcome-icon{background:linear-gradient(145deg,#282d4a,#202034);border-color:#7775ff65;color:#bdb7ff;box-shadow:0 0 55px #8178ff18}
+.avatar{background:linear-gradient(140deg,#61e8f3 0%,#8584ff 54%,#c1a0ff 100%);color:#111322;border:1px solid #ffffff18}
+.avatar img{border-radius:inherit}
+.profile-mini .avatar{box-shadow:0 0 0 2px #a5a1ff1c,0 6px 18px #0003}
+.nav:active,.chat-item:active,.icon-button:active{transform:scale(.985)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #a39bff;outline-offset:2px}
+.message-composer textarea{min-width:0}
+.gift-message-card{border-color:#a99fff30;box-shadow:0 12px 36px #0003,0 0 30px #8a80ff10}
+.profile-hero{border-color:#a5a1ff22}
+@media(min-width:1100px){
+  .sidebar{width:250px;min-width:250px}
+  .chat-layout{grid-template-columns:minmax(270px,310px) minmax(0,1fr)}
+  .topbar{padding-left:28px;padding-right:28px}
+}
+@media(max-width:850px){
+  .chat-layout{grid-template-columns:minmax(235px,34%) minmax(0,1fr)}
+  .topbar-right{gap:8px}
+}
+@media(max-width:720px){
+  .sidebar{overflow-y:auto}
+  .topbar{gap:8px}
+  .topbar-right{gap:7px}
+  .currency-pill{padding:7px 9px;font-size:10px}
+  .topbar-right>span:not(.online-dot):last-child{display:none}
+  .chat-layout{grid-template-columns:minmax(0,1fr)}
+  .chat-layout:not(.has-open-chat) .chat-stage{display:none}
+  .chat-layout.has-open-chat{display:block}
+  .chat-layout.has-open-chat .chat-list-panel{display:none}
+  .chat-layout.has-open-chat .chat-stage{display:flex}
+}
+@media(max-width:460px){
+  .topbar{padding-left:12px;padding-right:12px}
+  .topbar h2{font-size:17px}
+  .topbar-right{gap:5px}
+  .currency-pill{padding:6px 7px}
+  .guest-register-topbar{max-width:88px;padding:7px;font-size:9px}
+  .chat-layout{grid-template-columns:minmax(0,1fr)}
+  .panel-heading{padding-left:14px;padding-right:14px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important}
+}
