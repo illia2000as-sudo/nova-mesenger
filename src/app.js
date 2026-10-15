@@ -74,7 +74,7 @@ function toast(message, error) {
   let n = $("#toast");
   if (!n) { n = document.createElement("div"); n.id = "toast"; n.className = "toast"; document.body.appendChild(n); }
   n.textContent = message; n.className = "toast show" + (error ? " error" : "");
-  clearTimeout(n._timer); n._timer = setTimeout(() => n.classList.remove("show"), 3500);
+  clearTimeout(n._timer); n._timer = setTimeout(() => n.classList.remove("show"), error ? 9000 : 3500);
 }
 let notificationAudioContext = null;
 function playIncomingMessageSound() {
@@ -843,29 +843,45 @@ async function saveAvatar(file) {
   if (!isImage && !isVideo) return toast("Поддерживаются JPG, PNG, WEBP, GIF, MP4 и WebM.", true);
   if (normalized.size === 0) return toast("Файл пустой. Выбери другое изображение.", true);
   if (normalized.size > (isVideo ? 20 : 8) * 1024 * 1024) return toast(isVideo ? "Видеоаватар должен быть не больше 20 МБ." : "Фото должно быть не больше 8 МБ.", true);
+  let avatarStage = "подготовка файла";
   try {
     if (isVideo) {
+      avatarStage = "проверка длительности видео";
       const duration = await mediaDuration(normalized);
       if (!Number.isFinite(duration) || duration > 5.05) return toast("Видеоаватар должен длиться не больше 5 секунд.", true);
     }
+    avatarStage = "загрузка файла в Firebase Storage";
     toast("Загружаем аватар…");
     const uploaded = await uploadMedia(normalized, "avatars/" + currentUser.uid);
     const oldPath = currentProfile.avatarPath;
     const fields = {avatarUrl:uploaded.url,avatarPath:uploaded.path,avatarType:isVideo?"video":"image",avatarUpdatedAt:Date.now()};
     // The user's own profile is the source of truth. Save and show it before attempting any cache sync.
+    avatarStage = "сохранение ссылки в профиле Realtime Database";
     await update(ref(db,"users/"+currentUser.uid),fields);
     Object.assign(currentProfile, fields);
     updateSidebar();
     renderProfilePage();
 
     // Refresh our own chat list and friends' cached cards independently; cache failures never undo the profile save.
+    avatarStage = "обновление копий аватара в списке чатов";
     await syncAvatarCaches(uploaded.url, fields.avatarType);
 
     if (oldPath && oldPath !== uploaded.path) deleteObject(storageRef(storage,oldPath)).catch(()=>{});
     toast("Аватар обновлён!");
   } catch(error) {
-    console.error("NOVA avatar upload failed:", error);
-    toast(errorText(error),true);
+    console.error("NOVA avatar upload failed at [" + avatarStage + "]:", error);
+    const code = String(error && error.code || "no-code");
+    const detail = errorText(error);
+    const advice = code === "storage/unauthorized"
+      ? "Проверь Firebase Console → Storage → Rules и нажми Publish для docs/firebase-storage-rules.txt."
+      : code === "storage/bucket-not-found" || code === "storage/project-not-found"
+        ? "Проверь, создан ли Firebase Storage в проекте nova-729f3 и совпадает ли bucket с конфигурацией."
+        : code === "storage/unknown" || code === "storage/retry-limit-exceeded"
+          ? "Проверь интернет, затем Firebase Console → Storage и состояние хранилища."
+          : code === "PERMISSION_DENIED" || code === "permission_denied"
+            ? "Ошибка записи профиля: проверь опубликованные Realtime Database Rules."
+            : "Скопируй код ошибки и этап ниже для точного исправления.";
+    toast("Аватар: " + avatarStage + ". Код: " + code + ". " + detail + " " + advice, true);
   }
 }
 async function removeAvatar() {
