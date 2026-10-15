@@ -9,6 +9,7 @@ on:
       - "mobile/**"
       - "android-app/**"
       - "scripts/prepare-mobile.cjs"
+      - "scripts/patch-android-manifest.cjs"
       - ".github/workflows/android-apk.yml"
 
 permissions:
@@ -47,6 +48,9 @@ jobs:
       - name: Generate native Android project
         working-directory: android-app
         run: npx cap add android
+
+      - name: Add Android microphone and camera permissions
+        run: node scripts/patch-android-manifest.cjs
 
       - name: Sync app assets and plugins
         working-directory: android-app
