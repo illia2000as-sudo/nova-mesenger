@@ -247,6 +247,9 @@ export function createCallSystem(api) {
     try {
       ensureLayer();
       showLayer(friend.displayName || friend.username, activeCallType === "video" ? "Запрашиваем доступ к камере и микрофону…" : "Запрашиваем доступ к микрофону…");
+      if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+        throw new Error("Android WebView не предоставил доступ к микрофону. Установи свежий APK NOVA и обнови Android System WebView.");
+      }
       localStream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: activeCallType === "video" ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } : false
@@ -298,7 +301,8 @@ export function createCallSystem(api) {
     } catch (e) {
       console.error("NOVA call error:", e);
       const denied = e?.name === "NotAllowedError" || e?.name === "PermissionDeniedError";
-      await endCall(false, denied ? "Нет доступа к камере или микрофону. Разреши их в настройках Windows." : "Не удалось начать звонок: " + (e?.message || "ошибка"));
+      const permissionMessage = "Разреши NOVA доступ к микрофону в настройках устройства; для видеозвонка также разреши камеру.";
+      await endCall(false, denied ? permissionMessage : "Не удалось начать звонок: " + (e?.message || "ошибка"));
     }
   }
 
@@ -348,7 +352,7 @@ export function createCallSystem(api) {
       console.error("NOVA accept call error:", e);
       try { await update(ref(db, "calls/" + incoming.callId), { status: "declined", endedBy: uid(), endedAt: Date.now() }); } catch (_) {}
       try { await remove(ref(db, "callInbox/" + uid() + "/" + incoming.callId)); } catch (_) {}
-      await endCall(false, "Не удалось принять звонок: " + (e?.message || "ошибка"));
+      await endCall(false, "Не удалось принять звонок: " + ((e?.name === "NotAllowedError" || e?.name === "PermissionDeniedError") ? "разреши NOVA доступ к микрофону и, если это видео, к камере в настройках устройства." : (e?.message || "ошибка")));
     }
   }
 
