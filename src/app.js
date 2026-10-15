@@ -360,6 +360,7 @@ async function openChat(chatId, info) {
   const isGroup = activeChatUser.isGroup === true;
   let peerReadAt = 0;
   let latestChatMessages = [];
+  let replyToMessage = null;
   let lastMarkedReadAt = 0;
   const markChatRead = async (readAt) => {
     if (!currentUser || !chatId || document.hidden) return;
@@ -373,7 +374,7 @@ async function openChat(chatId, info) {
   };
   const chatTitle = activeChatUser.groupName || activeChatUser.displayName || activeChatUser.username || "Диалог";
   const chatSubtitle = isGroup ? ("Группа · " + Number(activeChatUser.memberCount || (activeChatUser.memberUids || []).length || 0) + " участников") : ("@" + (activeChatUser.username || "user"));
-  stage.innerHTML = '<div class="conversation-head"><button id="mobileChatBack" class="mobile-chat-back" type="button" title="Назад к диалогам" aria-label="Назад к диалогам">←</button>'+avatarMarkup(activeChatUser)+'<div class="conversation-title"><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div><button id="desktopNotificationsToggle" class="icon-button conversation-notification-toggle" type="button" title="Включить уведомления" aria-label="Включить уведомления">🔔</button><button id="messageSearchToggle" class="icon-button conversation-search-toggle" type="button" title="Найти сообщение" aria-label="Найти сообщение">⌕</button>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Звонок</span></button><button id="videoCallBtn" class="call-start-button video-call-start-button" type="button" title="Начать видеозвонок">📹 <span>Видео</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageSearchBar" class="message-search-bar" hidden><span>⌕</span><input id="messageSearchInput" type="search" placeholder="Найти в переписке…" autocomplete="off"><span id="messageSearchCount" class="message-search-count"></span><button id="messageSearchClose" type="button" title="Закрыть поиск">×</button></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><button id="jumpToLatest" class="jump-to-latest" type="button" title="К последним сообщениям" aria-label="К последним сообщениям">↓<span>Новые сообщения</span></button><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><button id="cameraCaptureBtn" class="media-attach-button camera-capture-button" type="button" title="Сделать фото с камеры" aria-label="Сделать фото с камеры">📷</button><textarea id="messageInput" maxlength="4000" rows="1" autocomplete="off" placeholder="Напиши сообщение…" aria-label="Текст сообщения"></textarea><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
+  stage.innerHTML = '<div class="conversation-head"><button id="mobileChatBack" class="mobile-chat-back" type="button" title="Назад к диалогам" aria-label="Назад к диалогам">←</button>'+avatarMarkup(activeChatUser)+'<div class="conversation-title"><strong>'+esc(chatTitle)+'</strong><small>'+esc(chatSubtitle)+'</small></div><button id="desktopNotificationsToggle" class="icon-button conversation-notification-toggle" type="button" title="Включить уведомления" aria-label="Включить уведомления">🔔</button><button id="messageSearchToggle" class="icon-button conversation-search-toggle" type="button" title="Найти сообщение" aria-label="Найти сообщение">⌕</button>'+(isGroup?'<button id="groupManageBtn" class="group-manage-button" type="button" title="Управление группой">⚙ <span>Группа</span></button>':'<button id="giftOpenBtn" class="gift-open-button" type="button" title="Отправить подарок">🎁 <span>Подарок</span></button><button id="audioCallBtn" class="call-start-button" type="button" title="Начать аудиозвонок">☎ <span>Звонок</span></button><button id="videoCallBtn" class="call-start-button video-call-start-button" type="button" title="Начать видеозвонок">📹 <span>Видео</span></button>')+'<span class="conversation-status"><i></i> NOVA</span></div><div id="messageSearchBar" class="message-search-bar" hidden><span>⌕</span><input id="messageSearchInput" type="search" placeholder="Найти в переписке…" autocomplete="off"><span id="messageSearchCount" class="message-search-count"></span><button id="messageSearchClose" type="button" title="Закрыть поиск">×</button></div><div id="messageList" class="message-list"><div class="loading-note">Загружаем сообщения…</div></div><div id="replyPreview" class="reply-preview" hidden><div class="reply-preview-copy"><strong>Ответ на сообщение</strong><span id="replyPreviewText"></span></div><button id="replyCancelBtn" type="button" aria-label="Отменить ответ" title="Отменить ответ">×</button></div><button id="jumpToLatest" class="jump-to-latest" type="button" title="К последним сообщениям" aria-label="К последним сообщениям">↓<span>Новые сообщения</span></button><form id="messageForm" class="message-composer"><label class="media-attach-button" title="Отправить фото или видео">＋<input id="mediaInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm" hidden></label><button id="cameraCaptureBtn" class="media-attach-button camera-capture-button" type="button" title="Сделать фото с камеры" aria-label="Сделать фото с камеры">📷</button><textarea id="messageInput" maxlength="4000" rows="1" autocomplete="off" placeholder="Напиши сообщение…" aria-label="Текст сообщения"></textarea><button class="send-button" type="submit" aria-label="Отправить">➤</button></form>';
   if (currentUser?.isAnonymous) { $("#giftOpenBtn")?.remove(); $("#mediaInput")?.parentElement?.remove(); $("#cameraCaptureBtn")?.remove(); }
   const chatLayout = $(".chat-layout");
   if (chatLayout) chatLayout.classList.add("has-open-chat");
@@ -438,6 +439,22 @@ async function openChat(chatId, info) {
   const closeConversationSearch = () => { if (searchBar) searchBar.hidden = true; conversationSearchQuery = ""; if (searchInput) searchInput.value = ""; applyConversationSearch(); };
   if (searchClose) searchClose.addEventListener("click", closeConversationSearch);
   document.addEventListener("keydown", e => { if (e.key === "Escape" && searchBar && !searchBar.hidden) closeConversationSearch(); });
+  const replyPreview = $("#replyPreview");
+  const clearReply = () => { replyToMessage = null; if (replyPreview) replyPreview.hidden = true; };
+  $("#replyCancelBtn")?.addEventListener("click", clearReply);
+  const messageBoxForReply = $("#messageList");
+  if (messageBoxForReply) messageBoxForReply.addEventListener("click", event => {
+    const button = event.target.closest("[data-reply-message]");
+    if (!button) return;
+    const found = latestChatMessages.find(([id]) => id === button.dataset.replyMessage);
+    if (!found) return;
+    const [messageId, message] = found;
+    replyToMessage = {messageId, senderUid:message.senderUid || "", senderName:message.senderName || (message.senderUid === currentUser.uid ? (currentProfile.displayName || currentProfile.username || "Ты") : (activeChatUser?.displayName || activeChatUser?.groupName || activeChatUser?.username || "Участник")), text:String(message.text || (message.type === "media" ? "Фото или видео" : message.type === "gift" ? "Подарок 🎁" : "Сообщение")).slice(0,180)};
+    const previewText = $("#replyPreviewText");
+    if (previewText) previewText.textContent = replyToMessage.senderName + ": " + replyToMessage.text;
+    if (replyPreview) replyPreview.hidden = false;
+    $("#messageInput")?.focus();
+  });
   const jumpButton = $("#jumpToLatest"), messageBox = $("#messageList");
   if (jumpButton && messageBox) {
     let previousScrollTop = messageBox.scrollTop;
@@ -493,7 +510,8 @@ async function openChat(chatId, info) {
       if (message.type === "gift") return renderGiftMessage(message);
       if (message.type === "media") return renderMediaMessage(message);
       const read = mine && peerReadAt >= stamp;
-      return '<div class="message-row '+(mine?"mine":"")+'"><div class="message-bubble"><div>'+esc(message.text || "").replace(/\n/g,"<br>")+'</div><small data-message-created="'+(mine?stamp:"")+'">'+timeLabel(stamp)+(mine?' · Вы <span class="message-read-state '+(read?"is-read":"")+'">'+(read?"✓✓ Прочитано":"✓ Отправлено")+'</span>':'')+'</small></div></div>';
+      const replyMarkup = message.replyTo ? '<div class="message-reply-quote"><strong>'+esc(message.replyTo.senderName || "Участник")+'</strong><span>'+esc(message.replyTo.text || "Сообщение")+'</span></div>' : "";
+      return '<div class="message-row '+(mine?"mine":"")+'"><div class="message-bubble">'+replyMarkup+'<div>'+esc(message.text || "").replace(/\n/g,"<br>")+'</div><small data-message-created="'+(mine?stamp:"")+'">'+timeLabel(stamp)+(mine?' · Вы <span class="message-read-state '+(read?"is-read":"")+'">'+(read?"✓✓ Прочитано":"✓ Отправлено")+'</span>':'')+'</small><button class="message-reply-button" type="button" data-reply-message="'+esc(x[0])+'" title="Ответить">↩ Ответить</button></div></div>';
     }).join("") : '<div class="empty-messages"><span>✦</span><p>Это начало вашей истории. Напиши первым!</p></div>';
     if (firstMessageLoad || nearBottom) box.scrollTop = box.scrollHeight;
     else { box.scrollTop = oldTop; if (jumpButton) jumpButton.classList.add("visible","has-new"); }
@@ -506,7 +524,7 @@ async function openChat(chatId, info) {
     $(".send-button").disabled = true;
     try {
       const now = Date.now(), id = activeChatId, message = push(ref(db, "messages/" + id));
-      await set(message, {senderUid:currentUser.uid,text,createdAt:now});
+      await set(message, {senderUid:currentUser.uid,text,createdAt:now,...(replyToMessage ? {replyTo:replyToMessage} : {})});
       const chat = cachedChats[id] || activeChatUser || {}, updates = {};
       updates["chats/"+id+"/lastMessage"] = text.slice(0,120);
       updates["chats/"+id+"/updatedAt"] = now;
@@ -520,7 +538,7 @@ async function openChat(chatId, info) {
         updates["userChats/"+memberUid+"/"+id+"/lastMessage"] = text.slice(0,120);
         updates["userChats/"+memberUid+"/"+id+"/lastMessageAt"] = now;
       }
-      await update(ref(db), updates); input.value = ""; input.style.height = ""; try { localStorage.removeItem(draftKey); } catch (_) {} input.focus();
+      await update(ref(db), updates); input.value = ""; input.style.height = ""; clearReply(); try { localStorage.removeItem(draftKey); } catch (_) {} input.focus();
     } catch(e) { toast(errorText(e), true); }
     finally { if ($(".send-button")) $(".send-button").disabled = false; }
   });
