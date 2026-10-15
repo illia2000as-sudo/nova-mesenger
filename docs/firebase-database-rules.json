@@ -33,7 +33,7 @@
     },
     "chats": {
       "$chatId": {
-        ".read": "auth != null && data.child('members').child(auth.uid).val() === true",
+        ".read": "auth != null && (!data.exists() || data.child('members').child(auth.uid).val() === true)",
         ".write": "auth != null && ((!data.exists() && newData.child('members').child(auth.uid).val() === true) || data.child('members').child(auth.uid).val() === true)"
       }
     },
